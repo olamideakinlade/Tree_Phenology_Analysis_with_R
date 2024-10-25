@@ -1,11 +1,25 @@
 ---
-title: "tree phenology"
+title: "Tree Phenology"
 output: html_document
 date: "2024-10-22"
+author: 'Olamide Akinlade'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Hello World
+#Lesson 3#
+
+***Exercises on Tree Dormancy***
+
+1. Statistical method is recommended to calculate the temperature requirements (chilling and forcing periods) of a newly released cultivar. This involves using partial least square regression analysis for daily temperatures over a continuous period.
+
+1. Two advantages of the BBCH scale over traditional scale include:
+a. It was developed in a general frame for all the species
+b. It covers the whole development of a plant.
+
+1. Phenological stages of cherry
+a. Image 1: 51                      
+b. Image 2: 63 
+c. Image 3: 87
