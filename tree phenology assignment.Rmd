@@ -1,25 +1,100 @@
 ---
-title: "Tree Phenology"
+title: "Tree Phenology Logbook"
 output: html_document
 date: "2024-10-22"
-author: 'Olamide Akinlade'
+author: 'Olamide A. Akinlade'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Lesson 3#
+# Chapter 3: Tree Phenology Analysis
 
-***Exercises on Tree Dormancy***
+## 1.1 Tree Dormancy
+Winter dormancy may be defined as a trade-off between the length of the growing season and the protection against winter damage. To enter dormancy, vegetative growth is stopped in the late summer or early autumn and the shoots are converted into buds, where the shoot apical meristems are protected by tightly closed and hardened bud scales.
 
-1. Statistical method is recommended to calculate the temperature requirements (chilling and forcing periods) of a newly released cultivar. This involves using partial least square regression analysis for daily temperatures over a continuous period.
+### 1.1.1 Dormancy Phases
 
-1. Two advantages of the BBCH scale over traditional scale include:
+1. Dormancy Establishment
+1. Endodormancy
+1: Ecodormancy
+1. Growth resumption
+
+### 1.1.2 Physological processes that regulate dormancy 
+a. Transport
+b. Photohormones
+c. Genetics
+d. Carbohydrates dynamics 
+
+## ***Exercises on Tree Dormancy***
+
+1. Put yourself in the place of a breeder who wants to calculate the temperature requirements of a newly released cultivar. Which method will you use to calculate the chilling and forcing periods? Please justify your answer
+
+Statistical method is recommended to calculate the temperature requirements (chilling and forcing periods) of a newly released cultivar. This involves using partial least square regression analysis for daily temperatures over a continuous period.
+
+2. Which are the advantages (2) of the BBCH scale compared with earlier scales?
+
+Two advantages of the BBCH scale over traditional scale include:
 a. It was developed in a general frame for all the species
 b. It covers the whole development of a plant.
 
-1. Phenological stages of cherry
-a. Image 1: 51                      
-b. Image 2: 63 
-c. Image 3: 87
+3. Classify the following phenological stages of sweet cherry according to the BBCH scale: 
+
+Phenological stages of cherry
+1. Image 1: 51                      
+2. Image 2: 63 
+3. Image 3: 87
+
+
+
+# Chapter 4: Climate Change and impact projection
+
+# 1.1 Drivers of Climate change include:
+
+* Sun: Warms the earth through radiation. It is an important driver of climate change on geological timescales, but not of recent climate change.
+* Aerosols: They are largely dusts. Suspensions of liquid, solid, or mixed particles with highly variable chemical composition and size distribution.
+* Clouds: Can have both cooling and warming effect.
+* Ozone: Surface (tropospheric) ozone: constituent of smog, health hazard (bad 
+ozone). Greenhouse gas: presence in the stratosphere has a warming effect. Destroyed by chlorofluorocarbons (CFCs).
+* Surface albedo: Reflection of radiation by the land surface. Light surfaces (e.g. ice, snow) reflect almost all radiation, dark surfaces (ocean, dark soil, forest) very little.
+* Greenhouse gases: Atmospheric gases that trap heat on Earth. Greenhouse effects warms the planet.
+* Long-term drivers:
+
+
+
+
+## ***Exercises on Climate Change***
+
+1. List the main drivers of climate change at the decade to century scale, and briefly explain the mechanism through which the currently most important driver affects our climate.
+
+* Sun
+* Aerosols
+* Clouds
+* Ozone
+* Surface albedo
+* Greenhouse gases
+* Long-term drivers
+
+
+Most important: **GHGs**
+**Greenhouse effect**
++ Raises Earth’s mean temperature: +14°C instead of -18°C without GHGs!
++ Major GHGs: water vapor, CO2 (carbon dioxide), CH4 (methane), N2O (nitrous oxide)
+
+
+1. Explain briefly what is special about temperature dynamics of recent decades, and why we have good reasons to be concerned.
+
+Since 1901 strong warming (almost) everywhere on Earth.Up to 8°C warmer than the
+2003-2018 average. Precipitation anomalies (relative to median prec.) for Cologne/Bonn weather station. Some years with dry springs/summer.
+
+1. What does the abbreviation ‘RCP’ stand for, how are RCPs defined, and what is their role in projecting future climates? Representative Concentration Pathways (RCPs). It is a new greenhouse forcing scenarios in the IPCC‘s5th Assessment Report. From RCP to inputs for climate change impact models. 
+
+Roles of RCP:
+
+1. Briefly describe the 4 climate impact projection methods described in the fourth video. 
+
++ Statistical models
++ Species distribution modeling
++ Process-based models
++ Climate analogue analysis
