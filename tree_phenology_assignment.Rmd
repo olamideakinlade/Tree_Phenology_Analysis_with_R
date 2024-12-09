@@ -451,12 +451,12 @@ WHG %>% arrange(desc(Temp))
 1.  For the Winter_hours_gaps dataset, write a for loop to convert all
     temperatures (Temp column) to degrees Fahrenheit
 ```{r}
-Temp <- Winters_hours_gaps$Temp
+Temp <- Winters_hours_gaps$Temp[183:213] # JDay for July
 
 for (i in Temp)
 {
   Fahrenheit <- i * 1.8 + 32 
-  print(Fahrenheit)
+  print(Fahrenheit) 
 }
 ```
     
@@ -464,7 +464,7 @@ for (i in Temp)
 2.  Execute the same operation with a function from the apply family
 
 ```{r}
-x <- Winters_hours_gaps$Temp
+x <- Winters_hours_gaps$Temp[183:213]
 
 fahrenheit <- function(x)
   x * 1.8 + 32
