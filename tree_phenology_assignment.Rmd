@@ -4,7 +4,6 @@ author: "Olamide Akinlade"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 format:
   html:
-    format:
     toc: true
     toc_float: true
     toc-title: "Contents"
@@ -812,5 +811,1589 @@ ggplot(chill_simulations,
   ylab("Cumulative probability") +
   xlab("Frost incidence during April (hours)") +
   theme_bw(base_size = 20)
+```
+------------------------------------------------------------------------
+
+# Chapter 14: Generating historic temperature scenarios
+
+## ***Exercises on historic temperature scenarios*** 
+
+1. For the location you chose for previous exercises, produce historic temperature scenarios representing several years of the historic record (your choice).
+
+```{r}
+library(chillR)
+library(magrittr)
+require(kableExtra)
+
+# downloading weather station list for the vicinity of Rochester
+station_list <- handle_gsod(action = "list_stations",
+                            location=c(-77.60, 43.15))
+
+# downloading weather data for Greater Rochester International AP and convert it to chillR format
+Rochester_weather <- handle_gsod(action = "download_weather",
+                            location = station_list$chillR_code[1],
+                            time_interval = c(1973,2019)) %>%
+  handle_gsod()
+
+# check record for missing data
+fix_weather(Rochester_weather$'GREATER ROCHESTER INTERNATIONAL AP')$QC
+
+Rochester_patched <- patch_daily_temperatures(
+  weather = Rochester_weather$'GREATER ROCHESTER INTERNATIONAL AP',
+  patch_weather = list(KA_weather))
+
+fix_weather(Rochester_patched)$QC
+
+# interpolating these gaps now
+
+Rochester<-fix_weather(Rochester_patched)
+
+Rochester_temps<-Rochester$weather
+
+scenario_1980 <- temperature_scenario_from_records(weather = Rochester_temps,
+                                                   year = 1980)
+
+scenario_1980$'1980'$data
+
+#what could have happened in 1980 not what happpened
+
+temps_1980 <- temperature_generation(weather = Rochester_temps,
+                                     years = c(1973, 2019),
+                                     sim_years = c(2001, 2100),
+                                     temperature_scenario = scenario_1980)
+
+scenario_1996 <- temperature_scenario_from_records(weather = Rochester_temps,
+                                                   year = 1996)
+scenario_1996$'1996'$data
+
+relative_scenario <- temperature_scenario_baseline_adjustment(
+  baseline = scenario_1996,
+  temperature_scenario = scenario_1980)
+
+# error message here
+
+temps_1980 <- temperature_generation(weather = Rochester_temps,
+                                     years = c(1973, 2019),
+                                     sim_years = c(2001, 2100),
+                                     temperature_scenario = relative_scenario)
+
+all_past_scenarios <- temperature_scenario_from_records(
+  weather = Rochester_temps,
+  year = c(1980,
+           1990,
+           2000,
+           2010))
+
+adjusted_scenarios <- temperature_scenario_baseline_adjustment(
+  baseline = scenario_1996,
+  temperature_scenario = all_past_scenarios)
+```
+
+```{r, eval=FALSE}
+
+all_past_scenario_temps <- temperature_generation(
+  weather = Rochester_temps,
+  years = c(1973,2019),
+  sim_years = c(2001,2100),
+  temperature_scenario = adjusted_scenarios)
+
+```
+
+```{r, eval=FALSE, echo=FALSE}
+
+save_temperature_scenarios(all_past_scenario_temps,"data_New_York","all_past_temps")
+```
+
+```{r, echo=FALSE}
+
+all_past_scenario_temps <- load_temperature_scenarios("data_New_York","all_past_temps")
+``` 
+
+```{r}
+frost_model <- function(x)
+  step_model(x,
+             data.frame(
+               lower=c(-1000, 0),
+               upper=c(0, 1000),
+               weight=c(1, 0)))
+
+models <- list(Chill_Portions = Dynamic_Model,
+               GDH = GDH,
+               Frost_H = frost_model)
+
+
+
+
+
+
+chill_hist_scenario_list <- tempResponse_daily_list(all_past_scenario_temps,
+                                                    latitude = 43.15,
+                                                    Start_JDay = 305,
+                                                    End_JDay = 59,
+                                                    models = models)
+```
+
+2. Produce chill distributions for these scenarios and plot them.
+
+```{r}
+scenarios <- names(chill_hist_scenario_list)[1:4]
+
+
+all_scenarios <- chill_hist_scenario_list[[scenarios[1]]] %>%
+  mutate(scenario = as.numeric(scenarios[1]))
+
+
+for (sc in scenarios[2:4])
+ all_scenarios <- all_scenarios %>%
+  rbind(chill_hist_scenario_list[[sc]] %>%
+          cbind(
+            scenario=as.numeric(sc))
+        ) %>%
+  filter(Perc_complete == 100)
+
+# Let's compute the actual 'observed' chill for comparison
+actual_chill <- tempResponse_daily_list(Rochester_temps,
+                                        latitude = 43.15,
+                                        Start_JDay = 305,
+                                        End_JDay = 59,
+                                        models)[[1]] %>%
+  filter(Perc_complete == 100)
+
+ggplot(data = all_scenarios,
+       aes(scenario,
+           Chill_Portions,
+           fill = factor(scenario))) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  ylab("Chill accumulation (Chill Portions)") +
+  xlab("Scenario year") +
+  theme_bw(base_size = 10) +
+  ylim(c(0,90)) +
+  geom_point(data = actual_chill,
+             aes(End_year,
+                 Chill_Portions,
+                 fill = "blue"),
+             col = "blue",
+             show.legend = FALSE) +
+  scale_fill_discrete(name = "Scenario",
+                      breaks = unique(all_scenarios$scenario)) 
+
+
+temperature_means <- 
+  data.frame(Year = min(Rochester_temps$Year):max(Rochester_temps$Year),
+             Tmin = aggregate(Rochester_temps$Tmin,
+                              FUN = "mean",
+                              by = list(Rochester_temps$Year))[,2],
+             Tmax=aggregate(Rochester_temps$Tmax,
+                            FUN = "mean",
+                            by = list(Rochester_temps$Year))[,2]) %>%
+  mutate(runn_mean_Tmin = runn_mean(Tmin,15),
+         runn_mean_Tmax = runn_mean(Tmax,15))
+
+
+Tmin_regression <- lm(Tmin ~ Year,
+                      temperature_means)
+
+Tmax_regression <- lm(Tmax ~ Year,
+                      temperature_means)
+
+temperature_means <- temperature_means %>%
+  mutate(regression_Tmin = Tmin_regression$coefficients[1]+
+           Tmin_regression$coefficients[2]*temperature_means$Year,
+         regression_Tmax = Tmax_regression$coefficients[1]+
+           Tmax_regression$coefficients[2]*temperature_means$Year
+  )
+
+
+ggplot(temperature_means,
+       aes(Year,
+           Tmin)) + 
+  geom_point() + 
+  geom_line(data = temperature_means,
+            aes(Year,
+                runn_mean_Tmin),
+            lwd = 2,
+            col = "blue") + 
+  geom_line(data = temperature_means,
+            aes(Year,
+                regression_Tmin),
+            lwd = 2,
+            col = "red") +
+  theme_bw(base_size = 15) +
+  ylab("Mean monthly minimum temperature (°C)")
+
+ggplot(temperature_means,
+       aes(Year,
+           Tmax)) + 
+  geom_point() + 
+  geom_line(data = temperature_means,
+            aes(Year,
+                runn_mean_Tmax),
+            lwd = 2,
+            col = "blue") + 
+  geom_line(data = temperature_means,
+            aes(Year, 
+                regression_Tmax),
+            lwd = 2,
+            col = "red") +
+  theme_bw(base_size = 15) +
+  ylab("Mean monthly maximum temperature (°C)")
+```
+
+
+------------------------------------------------------------------------
+
+ 
+# Chapter 15: Future temperature scenarios
+
+## ***Exercises on future temperature scenarios** 
+
+1. Briefly describe the differences between the RCPs and the SSPs.
+
+Representative Concentration Pathways (RCPs) are climate change scenarios to project future greenhouse gas concentrations.These pathways (or trajectories) describe future greenhouse gas concentrations (not emissions) and have been formally adopted by the IPCC. The pathways describe different climate change scenarios, all of which were considered possible depending on the amount of greenhouse gases (GHG) emitted in the years to come. 
+
+Shared Socioeconomic Pathways (SSPs) are climate change scenarios of projected socioeconomic global changes up to 2100 as defined in the IPCC Sixth Assessment Report on climate change in 2021.The SRES scenarios are "baseline" (or "reference") scenarios, which means that they do not take into account any current or future measures to limit greenhouse gas (GHG) emissions.
+
+A major difference between both models is that RCPs focus on Emissions and Radiative Forcing while SSPs emphasize Socioeconomic Pathways.In phenology SSPs integrate societal drivers, allowing phenologists to link temperature scenarios with land use changes, habitat fragmentation, or conservation efforts.
+
+
+# Chapter 16: Generating CMIP6 temperature scenarios
+
+## ***Exercises on generating CMIP6 temperature scenarios*** 
+
+1. Analyze the historic and future impact of climate change on two agroclimatic metrics of your choice, for the location you’ve chosen for your earlier analyses.
+
+```{r}
+require(chillR)
+library(dplyr)
+library(ecmwfr)
+require(tidyverse)
+
+#read Rochester_temps
+
+Rochester_temps <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_temps.csv")
+
+location=c(-77.60, 43.15) #Rochester
+
+area <- c(45, -79, 40, -71)
+
+
+download_cmip6_ecmwfr(
+  scenarios = c("ssp126", "ssp245", "ssp370", "ssp585"),
+  area = area,
+  key = 'e1bd6995-c569-4df1-bbe8-3549cb586e4a',
+  model = 'default',
+  frequency = 'monthly',
+  variable = c('Tmin',  'Tmax'),
+  year_start = 2015,
+  year_end = 2100)
+
+download_baseline_cmip6_ecmwfr(
+  area = area,
+  key = 'e1bd6995-c569-4df1-bbe8-3549cb586e4a',
+  model = 'match_downloaded',
+  frequency = 'monthly',
+  variable = c('Tmin', 'Tmax'),
+  year_start = 1986, 
+  year_end = 2014, 
+  month = 1:12)
+
+download_baseline_cmip6_ecmwfr(
+  area = area,
+  key = 'e1bd6995-c569-4df1-bbe8-3549cb586e4a',
+  model = 'match_downloaded',
+  frequency = 'monthly',
+  variable = c('Tmin', 'Tmax'),
+  year_start = 1986,
+  year_end = 2014,
+  month = 1:12)
+
+station <- data.frame(
+  station_name = c("Rochester"),
+  longitude = c(-77.60),
+  latitude = c(43.15))
+
+library(ncdf4)
+library(PCICt)
+
+extracted <- extract_cmip6_data(stations = station)
+
+head(extracted$`ssp126_AWI-CM-1-1-MR`)
+
+change_scenarios <- 
+  gen_rel_change_scenario(extracted,
+                          scenarios = c(2050, 2085),
+                          reference_period = c(1986:2014),
+                          future_window_width = 30)
+head(change_scenarios)
+
+write.csv(change_scenarios, "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/all_change_scenarios.csv", row.names = FALSE)
+
+change_scenarios <- read.csv("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/all_change_scenarios.csv")
+
+scen_list <- convert_scen_information(change_scenarios)
+
+scen_frame <- convert_scen_information(scen_list)
+
+scen_list$Rochester$ssp126$`ACCESS-CM2`$'2050'
+
+
+temps_1996 <- temperature_scenario_from_records(Rochester_temps,
+                                                1996)
+temps_2000 <- temperature_scenario_from_records(Rochester_temps,
+                                                2000)
+temps_1996
+temps_2000
+
+base <- temperature_scenario_baseline_adjustment(temps_1996,
+                                                 temps_2000)
+
+base
+
+
+scen_list <- convert_scen_information(change_scenarios,
+                                      give_structure = FALSE)
+
+adjusted_list <- temperature_scenario_baseline_adjustment(base,
+                                                          scen_list,
+                   temperature_check_args = 
+                     list(scenario_check_thresholds = c(-5, 15)))
+
+
+# temps <- temperature_generation(Rochester_temps,
+#                                 years = c(1973, 2019),
+#                                 sim_years = c(2001, 2100),
+#                                 adjusted_list,  
+#                                 temperature_check_args = 
+#                                   list( scenario_check_thresholds = c(-5, 15)))
+# 
+# save_temperature_scenarios(temps,
+#                            "data_New_York/future_climate","Rochester_future")
+
+# temps <- load_temperature_scenarios("data_New_Year/future_climate","Rochester_future_")
+
+
+# now we have temperature scenarios
+
+for(scen in 1:length(adjusted_list))
+{
+  if(!file.exists(paste0("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate/Rochester_future_",
+                       scen,"_",
+                       names(adjusted_list)[scen],".csv")) )
+  {temp_temp <- temperature_generation(Rochester_temps,
+                                   years = c(1973, 2019),
+                                   sim_years = c(2001, 2100),
+                                   adjusted_list[scen],  
+                                   temperature_check_args = 
+                                     list( scenario_check_thresholds = c(-5, 15)))
+  write.csv(temp_temp[[1]],paste0("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate/Rochester_future_",scen,"_",names(adjusted_list)[scen],".csv"),
+                             row.names=FALSE)
+  print(paste("Processed object",scen,"of", length(adjusted_list)))
+  
+    
+  }
+  
+}
+
+
+
+temps <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate","Rochester_future_")
+
+frost_model <- function(x)
+  step_model(x,
+             data.frame(
+               lower = c(-1000, 0),
+               upper = c(0, 1000),
+               weight = c(1, 0)))
+
+models <- list(Chill_Portions = Dynamic_Model,
+               GDH = GDH,
+               Frost_H = frost_model)
+
+chill_future_scenario_list <- 
+  tempResponse_daily_list(temps,
+                          latitude = 43.15,
+                          Start_JDay = 305,
+                          End_JDay = 59,
+                          models = models)
+
+chill_future_scenario_list <- 
+  lapply(chill_future_scenario_list,
+         function(x) x %>%
+           filter(Perc_complete == 100))
+
+save_temperature_scenarios(chill_future_scenario_list,
+                           "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+                           "Rochester_futurechill")
+
+# this would be for spring frost, but we're not running this
+chill_future_scenario_list_frost <- 
+  tempResponse_daily_list(temps,
+                          latitude = 43.15,
+                          Start_JDay = 75,
+                          End_JDay = 120,
+                          models = list(GDH = GDH,
+                                        Frost_H = frost_model))
+
+chill_future_scenario_list_frost <- 
+  lapply(chill_future_scenario_list_frost,
+         function(x) x %>%
+           filter(Perc_complete == 100))
+
+
+save_temperature_scenarios(chill_future_scenario_list_frost,
+                           "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+                           "Rochester_futurefrost")
+
+# simulate for the observed record
+
+Rochester_temps <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_temps.csv")
+
+observed_chill <- tempResponse_daily_list(Rochester_temps,
+                                          latitude = 43.15,
+                                          Start_JDay = 305,
+                                          End_JDay = 59,
+                                          models = models)
+
+write.csv(observed_chill, "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_observed_chill_305_59.csv")
+
+# simulate chill for historic scenarios
+
+hist_temps <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York","all_past_temps")
+
+
+
+chill_hist_scenario_list <- tempResponse_daily_list(hist_temps,
+                                                    latitude = 43.15,
+                                                    Start_JDay = 305,
+                                                    End_JDay = 59,
+                                                    models = models)
+
+chill_hist_scenario_list <- lapply(chill_hist_scenario_list,
+                                   function(x) x %>%
+                                     filter(Perc_complete == 100))
+
+save_temperature_scenarios(chill_hist_scenario_list,
+                           "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+                           "Rochester_hist_chill_305_59")
+
+chill_future_scenario_list <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate","Rochester_futurechill")
+chill_hist_scenario_list<-load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York","Rochester_hist_chill_305_59")
+observed_chill <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_observed_chill_305_59.csv")
+
+
+# prepare for plotting
+
+chills <- make_climate_scenario(
+  metric_summary = chill_hist_scenario_list,
+  caption = "Historical",
+  historic_data = observed_chill,
+  time_series = TRUE)
+
+plot_climate_scenarios(
+  climate_scenario_list = chills,
+  metric = "Chill_Portions",
+  metric_label = "Chill (Chill Portions)")
+
+
+list_ssp <- 
+  strsplit(names(chill_future_scenario_list),
+           '\\.') %>%
+  map(2) %>%
+  unlist()
+
+list_gcm <-
+  strsplit(names(chill_future_scenario_list), '\\.') %>%
+  map(3) %>%
+  unlist()
+
+list_time <-
+  strsplit(names(chill_future_scenario_list), '\\.') %>%
+  map(4) %>%
+  unlist()
+
+SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+Times <- c(2050, 2085)
+
+
+for(SSP in SSPs)
+  for(Time in Times)
+  {
+    
+    # find all scenarios for the ssp and time
+    chill <- chill_future_scenario_list[list_ssp == SSP &
+                                          list_time == Time]
+    names(chill) <- list_gcm[list_ssp == SSP &
+                               list_time == Time]
+    if(SSP == "ssp126") SSPcaption <- "SSP1"
+    if(SSP == "ssp245") SSPcaption <- "SSP2"
+    if(SSP == "ssp370") SSPcaption <- "SSP3"
+    if(SSP == "ssp585") SSPcaption <- "SSP5"    
+    chills <- chill %>% 
+      make_climate_scenario(
+        caption = c(SSPcaption,
+                    Time),
+        add_to = chills)
+  }
+
+
+
+info_chill <-
+  plot_climate_scenarios(
+    climate_scenario_list = chills,
+    metric = "Chill_Portions",
+    metric_label = "Chill (Chill Portions)",
+    texcex = 1)
+
+info_heat <-
+  plot_climate_scenarios(
+    climate_scenario_list = chills,
+    metric = "GDH",
+    metric_label = "Heat (Growing Degree Hours)",
+    texcex = 1)
+
+info_frost <- 
+  plot_climate_scenarios(  
+    climate_scenario_list=chills,
+    metric="Frost_H",
+    metric_label="Frost incidence (hours)",
+    texcex=1)
+
+
+
+info_chill[[2]]
+```
+
+------------------------------------------------------------------------
+
+# Chapter 18: Plotting Climate Scenarios
+
+## ***Exercises on plotting future projections*** 
+
+1.Produce similar plots for the weather station you selected for earlier exercises.
+
+```{r}
+library(chillR)
+library(tidyverse)
+#library(ggpmisc)
+#library(patchwork)
+
+chill_hist_scenario_list <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York",
+                                                       "Rochester_hist_chill_305_59")
+actual_chill <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_observed_chill_305_59.csv")
+
+chill_future_scenario_list <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+                                                         "Rochester_futurechill")
+
+chills <- make_climate_scenario(
+  chill_hist_scenario_list,
+  caption = "Historic",
+  historic_data = actual_chill,
+  time_series = TRUE)
+
+SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+Times <- c(2050, 2085)
+
+list_ssp <- 
+  strsplit(names(chill_future_scenario_list), '\\.') %>%
+  map(2) %>%
+  unlist()
+
+list_gcm <-
+  strsplit(names(chill_future_scenario_list), '\\.') %>%
+  map(3) %>%
+  unlist()
+
+list_time <-
+  strsplit(names(chill_future_scenario_list), '\\.') %>%
+  map(4) %>%
+  unlist()
+
+
+for(SSP in SSPs)
+  for(Time in Times)
+    {
+    
+    # find all scenarios for the ssp and time
+    chill <- chill_future_scenario_list[list_ssp == SSP & list_time == Time]
+    names(chill) <- list_gcm[list_ssp == SSP & list_time == Time]
+    if(SSP == "ssp126") SSPcaption <- "SSP1"
+    if(SSP == "ssp245") SSPcaption <- "SSP2"
+    if(SSP == "ssp370") SSPcaption <- "SSP3"
+    if(SSP == "ssp585") SSPcaption <- "SSP5"    
+    if(Time == "2050") Time_caption <- "2050"
+    if(Time == "2085") Time_caption <- "2085"
+    chills <- chill %>% 
+      make_climate_scenario(
+        caption = c(SSPcaption,
+                    Time_caption),
+        add_to = chills)
+}
+
+plot_climate_scenarios(
+  climate_scenario_list = chills,
+  metric = "Chill_Portions",
+  metric_label = "Chill (Chill Portions)",
+  texcex = 1)
+
+
+# We'll first process the past scenarios (element 1 of the chills list).
+# Within the data element, we have a list of multiple data.frames for
+# the various past scenarios.
+# Using a 'for' loop, we cycle through all these data.frames.
+
+for(nam in names(chills[[1]]$data))
+  {
+   # Extract the data frame.
+   ch <- chills[[1]]$data[[nam]]
+   # Add columns for the new information we have to add and fill them.
+   ch[,"GCM"] <- "none"
+   ch[,"SSP"] <- "none"
+   ch[,"Year"] <- as.numeric(nam)
+   
+   # Now check if this is the first time we've gone through this loop.
+   # If this is the first time, the ch data.frame becomes the output
+   # object (past_simulated).
+   # If it is not the first time ('else'), we add the current data.frame
+   # to the 'past_simulated' object
+  if(nam == names(chills[[1]]$data)[1])
+    past_simulated <- ch else
+      past_simulated <- rbind(past_simulated,
+                              ch)
+  }
+
+# We add another column called 'Scenario' and label all rows as 'Historical' 
+past_simulated["Scenario"] <- "Historical"
+
+head(past_simulated)
+
+past_simulated <- past_simulated %>% filter(Perc_complete == 100)
+
+# We'll want to add the historic observation too, so let's simplify the
+# pointer to this information for easier use later
+
+past_observed <- chills[[1]][["historic_data"]]
+
+
+head(past_observed)
+
+
+# Extract future data
+for(i in 2:length(chills))
+  for(nam in names(chills[[i]]$data))
+    {ch <- chills[[i]]$data[[nam]]
+     ch[,"GCM"] <- nam
+     ch[,"SSP"] <- chills[[i]]$caption[1]
+     ch[,"Year"] <- chills[[i]]$caption[2]
+     if(i == 2 & nam == names(chills[[i]]$data)[1])
+       future_data <- ch else
+         future_data <- rbind(future_data,ch)
+  }
+
+
+head(future_data)
+
+
+
+metric <- "GDH"
+axis_label <- "Heat (in GDH)"
+
+# get extreme values for the axis scale
+
+
+rng <- range(past_observed[[metric]],
+             past_simulated[[metric]],
+             future_data[[metric]])  
+rng
+
+
+
+past_plot <- ggplot() +
+  geom_boxplot(data = past_simulated,
+               aes_string("as.numeric(Year)",
+                          metric,
+                          group = "Year"),
+               fill = "skyblue")
+
+past_plot
+
+
+
+past_plot <- past_plot +
+  scale_y_continuous(
+    limits = c(0, 
+               round(rng[2] + rng[2]/10))) +
+  labs(x = "Year", 
+       y = axis_label)
+
+past_plot
+
+
+past_plot <- past_plot +
+  facet_grid(~ Scenario) +
+  theme_bw(base_size = 15) 
+  
+past_plot
+
+  
+past_plot <- past_plot +  
+  theme(strip.background = element_blank(),
+        strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1)) 
+
+past_plot
+
+
+
+# add historic data
+past_plot <- past_plot +
+  geom_point(data = past_observed,
+             aes_string("End_year",
+                        metric),
+             col = "blue")
+
+past_plot
+
+
+
+y <- 2050
+
+future_2050 <-
+  ggplot(data = future_data[future_data$Year == y,]) +
+  geom_boxplot(aes_string("GCM", 
+                          metric, 
+                          fill = "GCM"))
+
+future_2050
+
+
+
+future_2050 <- future_2050 +
+  facet_wrap(vars(SSP), nrow = 1) +
+   scale_x_discrete(labels = NULL,
+                    expand = expansion(add = 1)) 
+
+
+library(ggpmisc)
+
+future_2050 <- future_2050 +
+  scale_y_continuous(limits = c(0, 
+                                round(round(1.1*rng[2])))) +
+    geom_text_npc(aes(npcx = "center", 
+                      npcy = "top",
+                      label = Year),
+                  size = 5)
+
+future_2050
+
+
+future_2050 <- future_2050 +
+  theme_bw(base_size = 15) +
+  theme(axis.ticks.y = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(0,
+                               0,
+                               0,
+                               0,
+                               "cm"),
+        legend.background = element_rect(),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"),
+        legend.box.spacing = unit(0, "cm"),
+        plot.subtitle = element_text(hjust = 0.5,
+                                     vjust = -1,
+                                     size = 15 * 1.05,
+                                     face = "bold")) 
+
+future_2050
+
+
+future_plot_list <- list()
+
+time_points <- c(2050, 2085)
+
+for(y in time_points)
+{
+  future_plot_list[[which(y == time_points)]] <-
+    ggplot(data = future_data[which(future_data$Year==y),]) +
+    geom_boxplot(aes_string("GCM",
+                            metric,
+                            fill="GCM")) +
+    facet_wrap(vars(SSP), nrow = 1) +
+    scale_x_discrete(labels = NULL,
+                     expand = expansion(add = 1)) +
+    scale_y_continuous(limits = c(0, 
+                                  round(round(1.1*rng[2])))) +
+    geom_text_npc(aes(npcx = "center",
+                      npcy = "top", 
+                      label = Year),
+                  size = 5) +
+    theme_bw(base_size = 15) +
+    theme(axis.ticks.y = element_blank(),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          legend.position = "bottom",
+          legend.margin = margin(0, 
+                                 0, 
+                                 0, 
+                                 0, 
+                                 "cm"),
+          legend.background = element_rect(),
+          strip.background = element_blank(),
+          strip.text = element_text(face = "bold"),
+          legend.box.spacing = unit(0, "cm"),
+          plot.subtitle = element_text(
+            hjust = 0.5,
+            vjust = -1,
+            size = 15 * 1.05,
+            face = "bold")) 
+}
+
+future_plot_list
+
+
+library(patchwork)
+
+both_plots <- past_plot + future_plot_list
+
+both_plots
+
+
+
+plot <- both_plots +
+           plot_layout(guides = "collect",
+                       widths = c(1,
+                                  rep(1.8,
+                                      length(future_plot_list))))
+         
+
+
+plot <- plot & theme(legend.position = "bottom",
+                     legend.text = element_text(size = 8),
+                     legend.title = element_text(size = 10),
+                     axis.title.x = element_blank())
+
+
+plot
+
+
+         
+metric <- "Chill_Portions"
+axis_label <- "Chill (in CP)"
+
+# get extreme values for the axis scale
+
+rng <- range(past_observed[[metric]],
+             past_simulated[[metric]],
+             future_data[[metric]])  
+past_plot <- ggplot() +
+  geom_boxplot(data = past_simulated,
+               aes_string("as.numeric(Year)",
+                          metric,group="Year"),
+               fill="skyblue") +
+  scale_y_continuous(limits = c(0, 
+                                round(round(1.1*rng[2])))) +
+  labs(x = "Year", y = axis_label) +
+  facet_grid(~ Scenario) +
+  theme_bw(base_size = 15) +  
+  theme(strip.background = element_blank(),
+           strip.text = element_text(face = "bold"),
+           axis.text.x = element_text(angle=45, hjust=1)) +
+  geom_point(data = past_observed,
+             aes_string("End_year",
+                        metric),
+             col="blue")
+
+future_plot_list <- list()
+
+for(y in c(2050,
+           2085))
+{
+  future_plot_list[[which(y == c(2050,2085))]] <-
+    ggplot(data = future_data[which(future_data$Year==y),]) +
+    geom_boxplot(aes_string("GCM", 
+                            metric, 
+                            fill="GCM")) +
+  facet_wrap(vars(SSP), nrow = 1) +
+   scale_x_discrete(labels = NULL,
+                    expand = expansion(add = 1)) +
+  scale_y_continuous(limits = c(0,
+                                round(round(1.1*rng[2])))) +
+    geom_text_npc(aes(npcx = "center", 
+                      npcy = "top", 
+                      label = Year),
+                  size = 5) +
+  theme_bw(base_size = 15) +
+  theme(axis.ticks.y = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(0,
+                               0, 
+                               0,
+                               0, 
+                               "cm"),
+        legend.background = element_rect(),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"),
+        legend.box.spacing = unit(0, "cm"),
+        plot.subtitle = element_text(hjust = 0.5, 
+                                     vjust = -1,
+                                     size = 15 * 1.05,
+                                     face = "bold")) 
+}
+
+plot <- (past_plot +
+           future_plot_list +
+           plot_layout(guides = "collect",
+                       widths = c(1,rep(1.8,length(future_plot_list))))
+         ) & theme(legend.position = "bottom",
+                   legend.text = element_text(size = 8),
+                   legend.title = element_text(size = 10),
+                   axis.title.x=element_blank())
+plot
+
+
+         
+metric <- "Frost_H"
+axis_label <- "Frost duration (in hours)"
+
+# get extreme values for the axis scale
+
+rng <- range(past_observed[[metric]],
+             past_simulated[[metric]],
+             future_data[[metric]])  
+past_plot <- ggplot() +
+  geom_boxplot(data = past_simulated,
+               aes_string("as.numeric(Year)",
+                          metric,group="Year"),
+               fill="skyblue") +
+  scale_y_continuous(limits = c(0, 
+                                round(round(1.1*rng[2])))) +
+  labs(x = "Year", y = axis_label) +
+  facet_grid(~ Scenario) +
+  theme_bw(base_size = 15) +  
+  theme(strip.background = element_blank(),
+           strip.text = element_text(face = "bold"),
+           axis.text.x = element_text(angle=45, hjust=1)) +
+  geom_point(data = past_observed,
+             aes_string("End_year",
+                        metric),
+             col="blue")
+
+future_plot_list <- list()
+
+for(y in c(2050,
+           2085))
+{
+  future_plot_list[[which(y == c(2050,2085))]] <-
+    ggplot(data = future_data[which(future_data$Year==y),]) +
+    geom_boxplot(aes_string("GCM", 
+                            metric, 
+                            fill="GCM")) +
+  facet_wrap(vars(SSP), nrow = 1) +
+   scale_x_discrete(labels = NULL,
+                    expand = expansion(add = 1)) +
+  scale_y_continuous(limits = c(0,
+                                round(round(1.1*rng[2])))) +
+    geom_text_npc(aes(npcx = "center", 
+                      npcy = "top", 
+                      label = Year),
+                  size = 5) +
+  theme_bw(base_size = 15) +
+  theme(axis.ticks.y = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(0,
+                               0, 
+                               0,
+                               0, 
+                               "cm"),
+        legend.background = element_rect(),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"),
+        legend.box.spacing = unit(0, "cm"),
+        plot.subtitle = element_text(hjust = 0.5, 
+                                     vjust = -1,
+                                     size = 15 * 1.05,
+                                     face = "bold")) 
+}
+
+plot <- (past_plot +
+           future_plot_list +
+           plot_layout(guides = "collect",
+                       widths = c(1,rep(1.8,length(future_plot_list))))
+         ) & theme(legend.position = "bottom",
+                   legend.text = element_text(size = 8),
+                   legend.title = element_text(size = 10),
+                   axis.title.x=element_blank())
+plot
+
+
+plot_scenarios_gg <- function(past_observed,
+                              past_simulated,
+                              future_data,
+                              metric,
+                              axis_label,
+                              time_points)
+{
+  rng <- range(past_observed[[metric]],
+               past_simulated[[metric]],
+               future_data[[metric]])  
+  past_plot <- ggplot() +
+    geom_boxplot(data = past_simulated,
+                 aes_string("as.numeric(Year)",
+                            metric,
+                            group="Year"),
+                 fill="skyblue") +
+    scale_y_continuous(limits = c(0, 
+                                  round(round(1.1*rng[2])))) +
+    labs(x = "Year", y = axis_label) +
+    facet_grid(~ Scenario) +
+    theme_bw(base_size = 15) +  
+    theme(strip.background = element_blank(),
+          strip.text = element_text(face = "bold"),
+          axis.text.x = element_text(angle=45, 
+                                     hjust=1)) +
+    geom_point(data = past_observed,
+               aes_string("End_year",
+                          metric),
+               col="blue")
+  
+  future_plot_list <- list()
+  
+  for(y in time_points)
+  {
+    future_plot_list[[which(y == time_points)]] <-
+      ggplot(data = future_data[which(future_data$Year==y),]) +
+      geom_boxplot(aes_string("GCM", 
+                              metric, 
+                              fill="GCM")) +
+      facet_wrap(vars(SSP), nrow = 1) +
+      scale_x_discrete(labels = NULL,
+                       expand = expansion(add = 1)) +
+      scale_y_continuous(limits = c(0, 
+                                    round(round(1.1*rng[2])))) +
+      geom_text_npc(aes(npcx = "center",
+                        npcy = "top",
+                        label = Year),
+                    size = 5) +
+      theme_bw(base_size = 15) +
+      theme(axis.ticks.y = element_blank(),
+            axis.text = element_blank(),
+            axis.title = element_blank(),
+            legend.position = "bottom",
+            legend.margin = margin(0,
+                                   0, 
+                                   0, 
+                                   0, 
+                                   "cm"),
+            legend.background = element_rect(),
+            strip.background = element_blank(),
+            strip.text = element_text(face = "bold"),
+            legend.box.spacing = unit(0, "cm"),
+            plot.subtitle = element_text(hjust = 0.5,
+                                         vjust = -1,
+                                         size = 15 * 1.05,
+                                         face = "bold")) 
+  }
+  
+  plot <- (past_plot +
+             future_plot_list +
+             plot_layout(guides = "collect",
+                         widths = c(1,rep(1.8,length(future_plot_list))))
+           ) & theme(legend.position = "bottom",
+                     legend.text = element_text(size=8),
+                     legend.title = element_text(size=10),
+                     axis.title.x=element_blank())
+  plot
+  
+}
+
+
+
+
+
+
+plot_scenarios_gg(past_observed = past_observed,
+                  past_simulated = past_simulated,
+                  future_data = future_data,
+                  metric = "GDH",
+                  axis_label = "Heat (in Growing Degree Hours)",
+                  time_points = c(2050, 2085))
+
+plot_scenarios_gg(past_observed = past_observed,
+                  past_simulated = past_simulated,
+                  future_data = future_data,
+                  metric = "Chill_Portions",
+                  axis_label = "Chill (in Chill Portions)",
+                  time_points = c(2050, 2085))
+
+plot_scenarios_gg(past_observed = past_observed,
+                  past_simulated = past_simulated,
+                  future_data = future_data,
+                  metric = "Frost_H",
+                  axis_label = "Frost duration (in hours)",
+                  time_points = c(2050, 2085))
+
+ggsave("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_frost_plot.png", 
+       width = 10,
+       height = 8,
+       dpi = 600)
+
+```
+------------------------------------------------------------------------
+
+# Chapter 19: Chill model comparison
+
+## ***Exercises on chill model comparison*** 
+
+1.Produce similar plots for the weather station you selected for earlier exercises.
+
+```{r}
+library(chillR)
+library(dormancyR) #didn't install
+library(tidyverse)
+library(colorRamps)
+library(patchwork)
+library(gganimate)
+
+SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+Times <- c(2050, 2085)
+
+library(chillR)
+library(devtools)
+install_github("EduardoFernandezC/dormancyR")
+library(dormancyR)
+
+hourly_models <- list( Chilling_units = chilling_units,
+     Low_chill = low_chill_model,
+     Modified_Utah = modified_utah_model,
+     North_Carolina = north_carolina_model,
+     Positive_Utah = positive_utah_model,
+     Chilling_Hours = Chilling_Hours,
+     Utah_Chill_Units = Utah_Model,
+     Chill_Portions = Dynamic_Model)
+
+daily_models <- list(Rate_of_Chill = rate_of_chill,
+                     Chill_Days = chill_days,
+                     Exponential_Chill = exponential_chill,
+                     Triangular_Chill_Haninnen = triangular_chill_1,
+                     Triangular_Chill_Legave = triangular_chill_2)
+
+metrics <- c(names(daily_models),
+             names(hourly_models))
+
+model_labels = c("Rate of Chill",
+                 "Chill Days",
+                 "Exponential Chill",
+                 "Triangular Chill (Häninnen)",
+                 "Triangular Chill (Legave)",
+                 "Chilling Units",
+                 "Low-Chill Chill Units",
+                 "Modified Utah Chill Units",
+                 "North Carolina Chill Units",
+                 "Positive Utah Chill Units",
+                 "Chilling Hours",
+                 "Utah Chill Units",
+                 "Chill Portions")
+
+
+## data.frame(Metric=model_labels,'Function name'=metrics)
+
+
+data.frame(Metric=model_labels,'Function name'=metrics)
+
+Rochester_temps <- read_tab("data_New_York/Rochester_temps.csv")
+
+Temps <- load_temperature_scenarios("data_New_York",
+                                    "all_past_temps")
+
+
+
+
+Start_JDay <- 305
+End_JDay <- 59
+
+daily_models_past_scenarios <-
+  tempResponse_list_daily(Temps,
+                          Start_JDay = Start_JDay,
+                          End_JDay = End_JDay,
+                          models = daily_models) # list of daily temperatures function for min and max temps
+
+daily_models_past_scenarios <- lapply(
+  daily_models_past_scenarios,
+  function(x) x[which(x$Perc_complete>90),]) # allows us to apply models
+# total of 99 seasons
+
+hourly_models_past_scenarios <-
+  tempResponse_daily_list(Temps,
+                          latitude = 43.156,
+                          Start_JDay = Start_JDay,
+                          End_JDay = End_JDay,
+                          models = hourly_models,
+                          misstolerance = 10) 
+
+past_scenarios <- daily_models_past_scenarios # combine the two models
+
+past_scenarios <- lapply(
+  names(past_scenarios),
+  function(x)
+    cbind(past_scenarios[[x]],
+          hourly_models_past_scenarios[[x]][,names(hourly_models)]))
+
+names(past_scenarios) <- names(daily_models_past_scenarios)
+
+daily_models_observed <-
+  tempResponse_daily(Rochester_temps,
+                     Start_JDay = Start_JDay,
+                     End_JDay = End_JDay,
+                     models = daily_models)
+
+daily_models_observed <-
+  daily_models_observed[which(daily_models_observed$Perc_complete>90),]
+
+hourly_models_observed <-
+  tempResponse_daily_list(Rochester_temps,
+                          latitude= 43.156,
+                          Start_JDay = Start_JDay,
+                          End_JDay = End_JDay,
+                          models = hourly_models,
+                          misstolerance = 10)
+# run from here later
+past_observed <- cbind(
+  daily_models_observed,
+  hourly_models_observed[[1]][,names(hourly_models)]) 
+
+save_temperature_scenarios(past_scenarios,
+                           "data_New_York/future_climate",
+                           "Rochester_multichill_305_59_historic")
+write.csv(past_observed,
+          "data_New_York/future_climate/Rochester_multichill_305_59_observed.csv",
+          row.names=FALSE)
+
+
+
+future_temps <- load_temperature_scenarios("data_New_York/future_climate","Rochester_future_")
+
+SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+Times <- c(2050, 2085)
+
+
+list_ssp <-
+  strsplit(names(future_temps), '\\.') %>%
+  map(2) %>%
+  unlist()
+
+list_gcm <-
+  strsplit(names(future_temps), '\\.') %>%
+  map(3) %>%
+  unlist()
+
+list_time <-
+  strsplit(names(future_temps), '\\.') %>%
+  map(4) %>%
+  unlist()
+
+
+
+
+for(SSP in SSPs)
+  for(Time in Times)
+    {
+    Temps <- future_temps[list_ssp == SSP & list_time == Time]
+    names(Temps) <- list_gcm[list_ssp == SSP & list_time == Time]
+    daily_models_future_scenarios <- tempResponse_list_daily(
+      Temps,
+      Start_JDay = Start_JDay,
+      End_JDay = End_JDay,
+      models = daily_models)
+    daily_models_future_scenarios<-lapply(
+      daily_models_future_scenarios,
+      function(x) x[which(x$Perc_complete>90),])
+    hourly_models_future_scenarios<-
+      tempResponse_daily_list(
+        Temps,
+        latitude = 43.156,
+        Start_JDay = Start_JDay,
+        End_JDay = End_JDay,
+        models=hourly_models,
+        misstolerance = 10)
+
+    future_scenarios <- daily_models_future_scenarios
+
+    future_scenarios <- lapply(
+      names(future_scenarios),
+      function(x)
+        cbind(future_scenarios[[x]],
+              hourly_models_future_scenarios[[x]][,names(hourly_models)]))
+    names(future_scenarios)<-names(daily_models_future_scenarios)
+
+    chill<-future_scenarios
+
+    save_temperature_scenarios(
+      chill,
+      "data_New_York/future_climate",
+      paste0("Rochester_multichill_305_59_",Time,"_",SSP))
+}
+```
+
+2. Make a heat map illustrating past and future changes in Safe Winter Chill, relative to a past scenario, for the 13 chill models used here
+
+```{r}
+chill_past_scenarios <- load_temperature_scenarios(
+  "data_New_York/future_climate",
+  "Rochester_multichill_305_59_historic")
+
+chill_observed <- 
+  read_tab("data_New_York/future_climate/Rochester_multichill_305_59_observed.csv")
+
+
+chills <- make_climate_scenario(chill_past_scenarios,
+                                caption = "Historic",
+                                historic_data = chill_observed,
+                                time_series = TRUE)
+
+for(SSP in SSPs)
+  for(Time in Times)
+    {
+    chill <- load_temperature_scenarios(
+      "data_New_York/future_climate",
+      paste0("Rochester_multichill_305_59_",Time,"_",SSP))
+    if(SSP == "ssp126") SSPcaption <- "SSP1"
+    if(SSP == "ssp245") SSPcaption <- "SSP2"
+    if(SSP == "ssp370") SSPcaption <- "SSP3"    
+    if(SSP == "ssp585") SSPcaption <- "SSP5"    
+    if(Time == "2050") Time_caption <- "2050"
+    if(Time == "2085") Time_caption <- "2085"
+    chills <- make_climate_scenario(chill,
+                                    caption = c(SSPcaption,
+                                                Time_caption),
+                                    add_to = chills) 
+} # 8 future scenarios
+
+
+plot_climate_scenarios(chills,
+                       metric="Rate_of_Chill",
+                       metric_label="Rate of Chill",
+                       year_name="End_Year")
+
+
+for(i in 1:length(chills))
+   {ch <- chills[[i]]
+   if(ch$caption[1] == "Historic")
+     {GCMs <- rep("none",length(names(ch$data)))
+      SSPs <- rep("none",length(names(ch$data)))
+      Years <- as.numeric(ch$labels)
+      Scenario <- rep("Historic",
+                      length(names(ch$data)))} else
+                        {GCMs <- names(ch$data)
+                        SSPs <- rep(ch$caption[1],
+                                    length(names(ch$data)))
+                        Years <- rep(as.numeric(ch$caption[2]),
+                                     length(names(ch$data)))
+                        Scenario <- rep("Future",
+                                        length(names(ch$data)))}
+   for(nam in names(ch$data))
+     {for(met in metrics)
+       {temp_res <-
+         data.frame(Metric = met,
+                    GCM = GCMs[which(nam == names(ch$data))],
+                    SSP = SSPs[which(nam == names(ch$data))],
+                    Year = Years[which(nam == names(ch$data))],
+                    Result = quantile(ch$data[[nam]][,met],0.1), # 10% quantile
+                    Scenario = Scenario[which(nam == names(ch$data))])
+       if(i == 1 & nam == names(ch$data)[1] & met == metrics[1])
+         results <- temp_res else
+           results <- rbind(results,
+                            temp_res)
+         }
+     }
+   }
+
+for(met in metrics)
+  results[which(results$Metric == met),"SWC"] <-
+    results[which(results$Metric == met),"Result"]/
+      results[which(results$Metric == met & results$Year == 1980),
+              "Result"]-1
+
+### please process until here before Thursday
+......
+
+rng = range(results$SWC)
+
+p_future <- ggplot(results[which(!results$GCM == "none"),],
+                   aes(GCM,
+                       y = factor(Metric,
+                                  levels = metrics),
+                       fill = SWC)) +
+  geom_tile()
+
+p_future
+
+
+p_future <-
+  p_future +
+  facet_grid(SSP ~ Year) 
+
+p_future
+
+p_future <-
+  p_future +
+  theme_bw(base_size = 10) +
+  theme(axis.text = element_text(size = 6))
+
+p_future
+
+library(colorRamps)
+p_future <-
+  p_future +
+  scale_fill_gradientn(colours = rev(matlab.like(15)),
+                       labels = scales::percent,
+                       limits = rng)
+
+p_future
+
+
+p_future <-
+  p_future  +
+  theme(axis.text.x = element_text(angle = 75, 
+                                   hjust = 1,
+                                   vjust = 1)) +
+  labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
+  scale_y_discrete(labels = model_labels) +
+  ylab("Chill metric")
+
+p_future
+
+
+
+
+p_past<-
+  ggplot(results[which(results$GCM == "none"),],
+         aes(Year,
+             y = factor(Metric, 
+                        levels=metrics),
+             fill = SWC)) +
+  geom_tile()
+
+p_past<-
+  p_past +
+  theme_bw(base_size = 10) +
+  theme(axis.text = element_text(size = 6))
+
+p_past<-
+  p_past +
+  scale_fill_gradientn(colours = rev(matlab.like(15)),
+                       labels = scales::percent,
+                       limits = rng)
+
+p_past<-
+  p_past +
+  scale_x_continuous(position = "top")
+
+p_past<-
+  p_past +
+  labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
+  scale_y_discrete(labels = model_labels) +
+  ylab("Chill metric")
+
+p_past
+
+
+library(patchwork)
+
+chill_comp_plot<-
+  (p_past +
+     p_future +
+     plot_layout(guides = "collect",
+                 nrow = 2,
+                 heights = c(1,3))) &
+  theme(legend.position = "right",
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+chill_comp_plot
+```
+
+3. Produce an animated line plot of your results (summarizing Safe Winter Chill across all the GCMs).
+
+```{r}
+hist_results <- results[which(results$GCM == "none"),]
+hist_results$SSP <- "SSP1"
+hist_results_2 <- hist_results
+hist_results_2$SSP <- "SSP2"
+hist_results_3 <- hist_results
+hist_results_3$SSP <- "SSP3"
+hist_results_4 <- hist_results
+hist_results_4$SSP <- "SSP5"
+hist_results <- rbind(hist_results,
+                      hist_results_2,
+                      hist_results_3,
+                      hist_results_4)
+
+future_results <- results[which(!results$GCM == "none"),]
+
+GCM_aggregate <- aggregate(
+  future_results$SWC,
+  by=list(future_results$Metric,
+          future_results$SSP,
+          future_results$Year),
+  FUN=mean)
+
+colnames(GCM_aggregate) <- c("Metric",
+                             "SSP",
+                             "Year",
+                             "SWC")
+
+SSP_Time_series<-rbind(hist_results[,c("Metric",
+                                       "SSP",
+                                       "Year",
+                                       "SWC")],
+                       GCM_aggregate)
+
+
+
+SSP_Time_series$Year <- as.numeric(SSP_Time_series$Year)
+
+chill_change_plot<-
+  ggplot(data = SSP_Time_series,
+         aes(x = Year,
+             y = SWC,
+             col = factor(Metric,
+                          levels = metrics))) +
+  geom_line(lwd = 1.3) +
+  facet_wrap(~SSP,
+             nrow = 3) +
+  theme_bw(base_size = 10) +
+  labs(col = "Change in\nSafe Winter Chill\nsince 1980") +
+  scale_color_discrete(labels = model_labels) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(face = "bold")) +
+  ylab("Safe Winter Chill")
+
+chill_change_plot
+
+
+library(gganimate)
+library(gifski)
+library(png)
+library(transformr)
+ccp<-chill_change_plot +
+  transition_reveal(Year)
+
+# trying out different numbers of frames per second
+
+animate(ccp, fps=1)
+anim_save("data_New_York/chill_comparison_animation_1.gif",
+          animation = last_animation())
+
+animate(ccp, fps=100)
+anim_save("data_New_York/chill_comparison_animation_100.gif",
+          animation = last_animation())
 ```
 
