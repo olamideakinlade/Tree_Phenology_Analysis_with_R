@@ -548,6 +548,7 @@ Rochester_QC <- fix_weather(Rochester)$QC
     handle_gsod function
 
 ```{r}
+
 station_list <- handle_gsod(action="list_stations",
                             location=c(-77.60, 43.15),
                               time_interval=c(1990,2020))
@@ -641,9 +642,10 @@ write.csv(monthly_bias_fixed$weather,
 1.  For the location you chose for your earlier analyses, use chillR’s
     weather generator to produce 100 years of synthetic temperature
     data.
-```{r}
+```{r, eval = FALSE}
+
 library(chillR)
-library(tidyverse)
+library(tidyverse) 
 
 Rochester <- read.csv('data_New_York/Rochester_weather.csv')
 
@@ -669,10 +671,7 @@ Temperatures <- Rochester %>%
   mutate(Date = as.Date(ISOdate(2000,
                                 Month,
                                 Day)))
-```
 
-
-```{r}
 ggplot(data = Temperatures,
        aes(Date,
            Tmin)) +
@@ -681,10 +680,7 @@ ggplot(data = Temperatures,
   theme_bw(base_size = 20) +
   theme(legend.position = "none") +
   scale_x_date(date_labels = "%b")
-```
 
-
-```{r}
 ggplot(data = Temperatures,
        aes(Date,
            Tmax)) +
@@ -698,7 +694,36 @@ ggplot(data = Temperatures,
 2.  Calculate winter chill (in Chill Portions) for your synthetic
     weather, and illustrate your results as histograms and cumulative
     distributions.
-```{r}
+```{r, eval = FALSE}
+
+library(chillR)
+library(tidyverse) 
+
+Rochester <- read.csv('data_New_York/Rochester_weather.csv')
+
+Temp <- Rochester %>%
+  temperature_generation(years = c(1998,2009),
+                         sim_years = c(2001,2100))
+
+library(dplyr)
+library(magrittr)
+
+Temperatures <- Rochester %>% 
+  select(Year, Month, Day, Tmin, Tmax) %>% 
+  filter(Year %in% 1998:2009) %>%
+  cbind(Data_source = "observed") %>%
+  rbind(
+    Temp[[1]] %>% select(c(Year,
+                           Month,
+                           Day,
+                           Tmin,
+                           Tmax)) %>%
+      cbind(Data_source = "simulated")
+    ) %>%
+  mutate(Date = as.Date(ISOdate(2000,
+                                Month,
+                                Day)))
+
 chill_observed <- Temperatures %>%
   filter(Data_source == "observed") %>%
   stack_hourly_temps(latitude = 43.15) %>%
@@ -720,9 +745,7 @@ chill_comparison <-
 chill_comparison_full_seasons <- 
   chill_comparison %>%
   filter(Perc_complete == 100)
-```
 
-```{r}
 ggplot(chill_comparison_full_seasons,
        aes(x = Chill_portions)) + 
   geom_histogram(binwidth = 1,
@@ -731,9 +754,7 @@ ggplot(chill_comparison_full_seasons,
   labs(fill = "Data source") +
   xlab("Chill accumulation (Chill Portions)") +
   ylab("Frequency")
-```
 
-```{r}
 chill_simulations <-
   chill_comparison_full_seasons %>%
   filter(Data_source == "simulated")
@@ -746,12 +767,40 @@ ggplot(chill_simulations,
   ylab("Cumulative probability") +
   xlab("Chill accumulation (in Chill Portions)") +
   theme_bw(base_size = 20)
+
 ```
 3.  Produce similar plots for the number of freezing hours (\<0°C) in
     April (or October, if your site is in the Southern Hemisphere) for
     your location of interest.
     
-```{r}
+```{r, eval = FALSE}
+library(chillR)
+library(tidyverse) 
+
+Rochester <- read.csv('data_New_York/Rochester_weather.csv')
+
+Temp <- Rochester %>%
+  temperature_generation(years = c(1998,2009),
+                         sim_years = c(2001,2100))
+
+library(dplyr)
+library(magrittr)
+
+Temperatures <- Rochester %>% 
+  select(Year, Month, Day, Tmin, Tmax) %>% 
+  filter(Year %in% 1998:2009) %>%
+  cbind(Data_source = "observed") %>%
+  rbind(
+    Temp[[1]] %>% select(c(Year,
+                           Month,
+                           Day,
+                           Tmin,
+                           Tmax)) %>%
+      cbind(Data_source = "simulated")
+    ) %>%
+  mutate(Date = as.Date(ISOdate(2000,
+                                Month,
+                                Day)))
 df <- data.frame(
   lower =  c(-1000,    0),
   upper =  c(    0, 1000),
@@ -786,9 +835,7 @@ chill_comparison <-
 chill_comparison_full_seasons <-
   chill_comparison %>%
   filter(Perc_complete == 100)
-```
 
-```{r}
 ggplot(chill_comparison_full_seasons,
        aes(x = Frost)) + 
   geom_histogram(binwidth = 25,
@@ -797,8 +844,7 @@ ggplot(chill_comparison_full_seasons,
   labs(fill = "Data source") +
   xlab("Frost incidence during April (hours)") +
   ylab("Frequency")
-```
-```{r}
+
 chill_simulations <-
   chill_comparison_full_seasons %>%
   filter(Data_source == "simulated")
@@ -820,7 +866,8 @@ ggplot(chill_simulations,
 
 1. For the location you chose for previous exercises, produce historic temperature scenarios representing several years of the historic record (your choice).
 
-```{r}
+```{r, eval = FALSE}
+
 library(chillR)
 library(magrittr)
 require(kableExtra)
@@ -909,7 +956,7 @@ save_temperature_scenarios(all_past_scenario_temps,"data_New_York","all_past_tem
 all_past_scenario_temps <- load_temperature_scenarios("data_New_York","all_past_temps")
 ``` 
 
-```{r}
+```{r, eval = FALSE}
 frost_model <- function(x)
   step_model(x,
              data.frame(
@@ -935,7 +982,7 @@ chill_hist_scenario_list <- tempResponse_daily_list(all_past_scenario_temps,
 
 2. Produce chill distributions for these scenarios and plot them.
 
-```{r}
+```{r, eval = FALSE}
 scenarios <- names(chill_hist_scenario_list)[1:4]
 
 
@@ -1062,7 +1109,7 @@ A major difference between both models is that RCPs focus on Emissions and Radia
 
 1. Analyze the historic and future impact of climate change on two agroclimatic metrics of your choice, for the location you’ve chosen for your earlier analyses.
 
-```{r}
+```{r, eval = FALSE}
 require(chillR)
 library(dplyr)
 library(ecmwfr)
@@ -1371,7 +1418,8 @@ info_chill[[2]]
 
 1.Produce similar plots for the weather station you selected for earlier exercises.
 
-```{r}
+```{r, eval = FALSE}
+
 library(chillR)
 library(tidyverse)
 #library(ggpmisc)
@@ -1953,447 +2001,1427 @@ ggsave("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_f
 
 1.Produce similar plots for the weather station you selected for earlier exercises.
 
-```{r}
-library(chillR)
-library(dormancyR) #didn't install
-library(tidyverse)
-library(colorRamps)
-library(patchwork)
-library(gganimate)
-
-SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
-Times <- c(2050, 2085)
-
-library(chillR)
-library(devtools)
-install_github("EduardoFernandezC/dormancyR")
-library(dormancyR)
-
-hourly_models <- list( Chilling_units = chilling_units,
-     Low_chill = low_chill_model,
-     Modified_Utah = modified_utah_model,
-     North_Carolina = north_carolina_model,
-     Positive_Utah = positive_utah_model,
-     Chilling_Hours = Chilling_Hours,
-     Utah_Chill_Units = Utah_Model,
-     Chill_Portions = Dynamic_Model)
-
-daily_models <- list(Rate_of_Chill = rate_of_chill,
-                     Chill_Days = chill_days,
-                     Exponential_Chill = exponential_chill,
-                     Triangular_Chill_Haninnen = triangular_chill_1,
-                     Triangular_Chill_Legave = triangular_chill_2)
-
-metrics <- c(names(daily_models),
-             names(hourly_models))
-
-model_labels = c("Rate of Chill",
-                 "Chill Days",
-                 "Exponential Chill",
-                 "Triangular Chill (Häninnen)",
-                 "Triangular Chill (Legave)",
-                 "Chilling Units",
-                 "Low-Chill Chill Units",
-                 "Modified Utah Chill Units",
-                 "North Carolina Chill Units",
-                 "Positive Utah Chill Units",
-                 "Chilling Hours",
-                 "Utah Chill Units",
-                 "Chill Portions")
-
-
-## data.frame(Metric=model_labels,'Function name'=metrics)
-
-
-data.frame(Metric=model_labels,'Function name'=metrics)
-
-Rochester_temps <- read_tab("data_New_York/Rochester_temps.csv")
-
-Temps <- load_temperature_scenarios("data_New_York",
-                                    "all_past_temps")
-
-
-
-
-Start_JDay <- 305
-End_JDay <- 59
-
-daily_models_past_scenarios <-
-  tempResponse_list_daily(Temps,
-                          Start_JDay = Start_JDay,
-                          End_JDay = End_JDay,
-                          models = daily_models) # list of daily temperatures function for min and max temps
-
-daily_models_past_scenarios <- lapply(
-  daily_models_past_scenarios,
-  function(x) x[which(x$Perc_complete>90),]) # allows us to apply models
-# total of 99 seasons
-
-hourly_models_past_scenarios <-
-  tempResponse_daily_list(Temps,
-                          latitude = 43.156,
-                          Start_JDay = Start_JDay,
-                          End_JDay = End_JDay,
-                          models = hourly_models,
-                          misstolerance = 10) 
-
-past_scenarios <- daily_models_past_scenarios # combine the two models
-
-past_scenarios <- lapply(
-  names(past_scenarios),
-  function(x)
-    cbind(past_scenarios[[x]],
-          hourly_models_past_scenarios[[x]][,names(hourly_models)]))
-
-names(past_scenarios) <- names(daily_models_past_scenarios)
-
-daily_models_observed <-
-  tempResponse_daily(Rochester_temps,
-                     Start_JDay = Start_JDay,
-                     End_JDay = End_JDay,
-                     models = daily_models)
-
-daily_models_observed <-
-  daily_models_observed[which(daily_models_observed$Perc_complete>90),]
-
-hourly_models_observed <-
-  tempResponse_daily_list(Rochester_temps,
-                          latitude= 43.156,
-                          Start_JDay = Start_JDay,
-                          End_JDay = End_JDay,
-                          models = hourly_models,
-                          misstolerance = 10)
-# run from here later
-past_observed <- cbind(
-  daily_models_observed,
-  hourly_models_observed[[1]][,names(hourly_models)]) 
-
-save_temperature_scenarios(past_scenarios,
-                           "data_New_York/future_climate",
-                           "Rochester_multichill_305_59_historic")
-write.csv(past_observed,
-          "data_New_York/future_climate/Rochester_multichill_305_59_observed.csv",
-          row.names=FALSE)
-
-
-
-future_temps <- load_temperature_scenarios("data_New_York/future_climate","Rochester_future_")
-
-SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
-Times <- c(2050, 2085)
-
-
-list_ssp <-
-  strsplit(names(future_temps), '\\.') %>%
-  map(2) %>%
-  unlist()
-
-list_gcm <-
-  strsplit(names(future_temps), '\\.') %>%
-  map(3) %>%
-  unlist()
-
-list_time <-
-  strsplit(names(future_temps), '\\.') %>%
-  map(4) %>%
-  unlist()
-
-
-
-
-for(SSP in SSPs)
-  for(Time in Times)
-    {
-    Temps <- future_temps[list_ssp == SSP & list_time == Time]
-    names(Temps) <- list_gcm[list_ssp == SSP & list_time == Time]
-    daily_models_future_scenarios <- tempResponse_list_daily(
-      Temps,
-      Start_JDay = Start_JDay,
-      End_JDay = End_JDay,
-      models = daily_models)
-    daily_models_future_scenarios<-lapply(
-      daily_models_future_scenarios,
-      function(x) x[which(x$Perc_complete>90),])
-    hourly_models_future_scenarios<-
-      tempResponse_daily_list(
-        Temps,
-        latitude = 43.156,
-        Start_JDay = Start_JDay,
-        End_JDay = End_JDay,
-        models=hourly_models,
-        misstolerance = 10)
-
-    future_scenarios <- daily_models_future_scenarios
-
-    future_scenarios <- lapply(
-      names(future_scenarios),
-      function(x)
-        cbind(future_scenarios[[x]],
-              hourly_models_future_scenarios[[x]][,names(hourly_models)]))
-    names(future_scenarios)<-names(daily_models_future_scenarios)
-
-    chill<-future_scenarios
-
-    save_temperature_scenarios(
-      chill,
-      "data_New_York/future_climate",
-      paste0("Rochester_multichill_305_59_",Time,"_",SSP))
-}
-```
-
-2. Make a heat map illustrating past and future changes in Safe Winter Chill, relative to a past scenario, for the 13 chill models used here
-
-```{r}
-chill_past_scenarios <- load_temperature_scenarios(
-  "data_New_York/future_climate",
-  "Rochester_multichill_305_59_historic")
-
-chill_observed <- 
-  read_tab("data_New_York/future_climate/Rochester_multichill_305_59_observed.csv")
-
-
-chills <- make_climate_scenario(chill_past_scenarios,
-                                caption = "Historic",
-                                historic_data = chill_observed,
-                                time_series = TRUE)
-
-for(SSP in SSPs)
-  for(Time in Times)
-    {
-    chill <- load_temperature_scenarios(
-      "data_New_York/future_climate",
-      paste0("Rochester_multichill_305_59_",Time,"_",SSP))
-    if(SSP == "ssp126") SSPcaption <- "SSP1"
-    if(SSP == "ssp245") SSPcaption <- "SSP2"
-    if(SSP == "ssp370") SSPcaption <- "SSP3"    
-    if(SSP == "ssp585") SSPcaption <- "SSP5"    
-    if(Time == "2050") Time_caption <- "2050"
-    if(Time == "2085") Time_caption <- "2085"
-    chills <- make_climate_scenario(chill,
-                                    caption = c(SSPcaption,
-                                                Time_caption),
-                                    add_to = chills) 
-} # 8 future scenarios
-
-
-plot_climate_scenarios(chills,
-                       metric="Rate_of_Chill",
-                       metric_label="Rate of Chill",
-                       year_name="End_Year")
-
-
-for(i in 1:length(chills))
-   {ch <- chills[[i]]
-   if(ch$caption[1] == "Historic")
-     {GCMs <- rep("none",length(names(ch$data)))
-      SSPs <- rep("none",length(names(ch$data)))
-      Years <- as.numeric(ch$labels)
-      Scenario <- rep("Historic",
-                      length(names(ch$data)))} else
-                        {GCMs <- names(ch$data)
-                        SSPs <- rep(ch$caption[1],
-                                    length(names(ch$data)))
-                        Years <- rep(as.numeric(ch$caption[2]),
-                                     length(names(ch$data)))
-                        Scenario <- rep("Future",
-                                        length(names(ch$data)))}
-   for(nam in names(ch$data))
-     {for(met in metrics)
-       {temp_res <-
-         data.frame(Metric = met,
-                    GCM = GCMs[which(nam == names(ch$data))],
-                    SSP = SSPs[which(nam == names(ch$data))],
-                    Year = Years[which(nam == names(ch$data))],
-                    Result = quantile(ch$data[[nam]][,met],0.1), # 10% quantile
-                    Scenario = Scenario[which(nam == names(ch$data))])
-       if(i == 1 & nam == names(ch$data)[1] & met == metrics[1])
-         results <- temp_res else
-           results <- rbind(results,
-                            temp_res)
-         }
-     }
-   }
-
-for(met in metrics)
-  results[which(results$Metric == met),"SWC"] <-
-    results[which(results$Metric == met),"Result"]/
-      results[which(results$Metric == met & results$Year == 1980),
-              "Result"]-1
-
-### please process until here before Thursday
-......
-
-rng = range(results$SWC)
-
-p_future <- ggplot(results[which(!results$GCM == "none"),],
-                   aes(GCM,
-                       y = factor(Metric,
-                                  levels = metrics),
-                       fill = SWC)) +
-  geom_tile()
-
-p_future
-
-
-p_future <-
-  p_future +
-  facet_grid(SSP ~ Year) 
-
-p_future
-
-p_future <-
-  p_future +
-  theme_bw(base_size = 10) +
-  theme(axis.text = element_text(size = 6))
-
-p_future
-
-library(colorRamps)
-p_future <-
-  p_future +
-  scale_fill_gradientn(colours = rev(matlab.like(15)),
-                       labels = scales::percent,
-                       limits = rng)
-
-p_future
-
-
-p_future <-
-  p_future  +
-  theme(axis.text.x = element_text(angle = 75, 
-                                   hjust = 1,
-                                   vjust = 1)) +
-  labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
-  scale_y_discrete(labels = model_labels) +
-  ylab("Chill metric")
-
-p_future
-
-
-
-
-p_past<-
-  ggplot(results[which(results$GCM == "none"),],
-         aes(Year,
-             y = factor(Metric, 
-                        levels=metrics),
-             fill = SWC)) +
-  geom_tile()
-
-p_past<-
-  p_past +
-  theme_bw(base_size = 10) +
-  theme(axis.text = element_text(size = 6))
-
-p_past<-
-  p_past +
-  scale_fill_gradientn(colours = rev(matlab.like(15)),
-                       labels = scales::percent,
-                       limits = rng)
-
-p_past<-
-  p_past +
-  scale_x_continuous(position = "top")
-
-p_past<-
-  p_past +
-  labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
-  scale_y_discrete(labels = model_labels) +
-  ylab("Chill metric")
-
-p_past
-
-
-library(patchwork)
-
-chill_comp_plot<-
-  (p_past +
-     p_future +
-     plot_layout(guides = "collect",
-                 nrow = 2,
-                 heights = c(1,3))) &
-  theme(legend.position = "right",
-        strip.background = element_blank(),
-        strip.text = element_text(face = "bold"))
-
-chill_comp_plot
+```{r, eval = FALSE}
+
+# library(chillR)
+# library(dormancyR) 
+# library(tidyverse)
+# library(colorRamps)
+# library(patchwork)
+# library(gganimate)
+# 
+# SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+# Times <- c(2050, 2085)
+# 
+# library(chillR)
+# library(devtools)
+# install_github("EduardoFernandezC/dormancyR")
+# library(dormancyR)
+# 
+# hourly_models <- list( Chilling_units = chilling_units,
+#      Low_chill = low_chill_model,
+#      Modified_Utah = modified_utah_model,
+#      North_Carolina = north_carolina_model,
+#      Positive_Utah = positive_utah_model,
+#      Chilling_Hours = Chilling_Hours,
+#      Utah_Chill_Units = Utah_Model,
+#      Chill_Portions = Dynamic_Model)
+# 
+# daily_models <- list(Rate_of_Chill = rate_of_chill,
+#                      Chill_Days = chill_days,
+#                      Exponential_Chill = exponential_chill,
+#                      Triangular_Chill_Haninnen = triangular_chill_1,
+#                      Triangular_Chill_Legave = triangular_chill_2)
+# 
+# metrics <- c(names(daily_models),
+#              names(hourly_models))
+# 
+# model_labels = c("Rate of Chill",
+#                  "Chill Days",
+#                  "Exponential Chill",
+#                  "Triangular Chill (Häninnen)",
+#                  "Triangular Chill (Legave)",
+#                  "Chilling Units",
+#                  "Low-Chill Chill Units",
+#                  "Modified Utah Chill Units",
+#                  "North Carolina Chill Units",
+#                  "Positive Utah Chill Units",
+#                  "Chilling Hours",
+#                  "Utah Chill Units",
+#                  "Chill Portions")
+# 
+# 
+# ## data.frame(Metric=model_labels,'Function name'=metrics)
+# 
+# 
+# data.frame(Metric=model_labels,'Function name'=metrics)
+# 
+# Rochester_temps <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Rochester_temps.csv")
+# 
+# Temps <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York",
+#                                     "all_past_temps")
+# 
+# 
+# 
+# 
+# Start_JDay <- 305
+# End_JDay <- 59
+# 
+# daily_models_past_scenarios <-
+#   tempResponse_list_daily(Temps,
+#                           Start_JDay = Start_JDay,
+#                           End_JDay = End_JDay,
+#                           models = daily_models) # list of daily temperatures function for min and max temps
+# 
+# daily_models_past_scenarios <- lapply(
+#   daily_models_past_scenarios,
+#   function(x) x[which(x$Perc_complete>90),]) # allows us to apply models
+# # total of 99 seasons
+# 
+# hourly_models_past_scenarios <-
+#   tempResponse_daily_list(Temps,
+#                           latitude = 43.156,
+#                           Start_JDay = Start_JDay,
+#                           End_JDay = End_JDay,
+#                           models = hourly_models,
+#                           misstolerance = 10) 
+# 
+# past_scenarios <- daily_models_past_scenarios # combine the two models
+# 
+# past_scenarios <- lapply(
+#   names(past_scenarios),
+#   function(x)
+#     cbind(past_scenarios[[x]],
+#           hourly_models_past_scenarios[[x]][,names(hourly_models)]))
+# 
+# names(past_scenarios) <- names(daily_models_past_scenarios)
+# 
+# daily_models_observed <-
+#   tempResponse_daily(Rochester_temps,
+#                      Start_JDay = Start_JDay,
+#                      End_JDay = End_JDay,
+#                      models = daily_models)
+# 
+# daily_models_observed <- 
+#   daily_models_observed[which(daily_models_observed$Perc_complete>90),]
+# 
+# hourly_models_observed <-
+#   tempResponse_daily_list(Rochester_temps,
+#                           latitude= 43.156,
+#                           Start_JDay = Start_JDay,
+#                           End_JDay = End_JDay,
+#                           models = hourly_models,
+#                           misstolerance = 10)
+# # run from here later
+# past_observed <- cbind(
+#   daily_models_observed,
+#   hourly_models_observed[[1]][,names(hourly_models)]) 
+# 
+# save_temperature_scenarios(past_scenarios,
+#                            "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+#                            "Rochester_multichill_305_59_historic")
+# write.csv(past_observed,
+#           "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate/Rochester_multichill_305_59_observed.csv",
+#           row.names=FALSE)
+# 
+# 
+# 
+# future_temps <- load_temperature_scenarios("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate","Rochester_future_")
+# 
+# SSPs <- c("ssp126", "ssp245", "ssp370", "ssp585")
+# Times <- c(2050, 2085)
+# 
+# 
+# list_ssp <-
+#   strsplit(names(future_temps), '\\.') %>%
+#   map(2) %>%
+#   unlist()
+# 
+# list_gcm <-
+#   strsplit(names(future_temps), '\\.') %>%
+#   map(3) %>%
+#   unlist()
+# 
+# list_time <-
+#   strsplit(names(future_temps), '\\.') %>%
+#   map(4) %>%
+#   unlist()
+# 
+# 
+# for(SSP in SSPs)
+#   for(Time in Times)
+#     {
+#     Temps <- future_temps[list_ssp == SSP & list_time == Time]
+#     names(Temps) <- list_gcm[list_ssp == SSP & list_time == Time]
+#     daily_models_future_scenarios <- tempResponse_list_daily(
+#       Temps,
+#       Start_JDay = Start_JDay,
+#       End_JDay = End_JDay,
+#       models = daily_models)
+#     daily_models_future_scenarios<-lapply(
+#       daily_models_future_scenarios,
+#       function(x) x[which(x$Perc_complete>90),])
+#     hourly_models_future_scenarios<-
+#       tempResponse_daily_list(
+#         Temps,
+#         latitude = 43.156,
+#         Start_JDay = Start_JDay,
+#         End_JDay = End_JDay,
+#         models=hourly_models,
+#         misstolerance = 10)
+# 
+#     future_scenarios <- daily_models_future_scenarios
+# 
+#     future_scenarios <- lapply(
+#       names(future_scenarios),
+#       function(x)
+#         cbind(future_scenarios[[x]],
+#               hourly_models_future_scenarios[[x]][,names(hourly_models)]))
+#     names(future_scenarios)<-names(daily_models_future_scenarios)
+# 
+#     chill<-future_scenarios
+# 
+#     save_temperature_scenarios(
+#       chill,
+#       "data_New_York/future_climate",
+#       paste0("Rochester_multichill_305_59_",Time,"_",SSP))
+# }
+# 
+# chill_past_scenarios <- load_temperature_scenarios(
+#   "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+#   "Rochester_multichill_305_59_historic")
+# 
+# chill_observed <- 
+#   read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate/Rochester_multichill_305_59_observed.csv")
+# 
+# 
+# chills <- make_climate_scenario(chill_past_scenarios,
+#                                 caption = "Historic",
+#                                 historic_data = chill_observed,
+#                                 time_series = TRUE)
+# 
+# for(SSP in SSPs)
+#   for(Time in Times)
+#     {
+#     chill <- load_temperature_scenarios(
+#       "C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/future_climate",
+#       paste0("Rochester_multichill_305_59_",Time,"_",SSP))
+#     if(SSP == "ssp126") SSPcaption <- "SSP1"
+#     if(SSP == "ssp245") SSPcaption <- "SSP2"
+#     if(SSP == "ssp370") SSPcaption <- "SSP3"    
+#     if(SSP == "ssp585") SSPcaption <- "SSP5"    
+#     if(Time == "2050") Time_caption <- "2050"
+#     if(Time == "2085") Time_caption <- "2085"
+#     
+#     chills <- make_climate_scenario(chill,
+#                                     caption = c(SSPcaption,
+#                                                 Time_caption),
+#                                     add_to = chills)
+# }
+# 
+# 
+# plot_climate_scenarios(chills,
+#                        metric="Rate_of_Chill",
+#                        metric_label="Rate of Chill",
+#                        year_name="End_Year")
+# 
+# 
+# for(i in 1:length(chills))
+#    {ch <- chills[[i]]
+#    if(ch$caption[1] == "Historic")
+#      {GCMs <- rep("none",length(names(ch$data)))
+#       SSPs <- rep("none",length(names(ch$data)))
+#       Years <- as.numeric(ch$labels)
+#       Scenario <- rep("Historic",
+#                       length(names(ch$data)))} else
+#                         {GCMs <- names(ch$data)
+#                         SSPs <- rep(ch$caption[1],
+#                                     length(names(ch$data)))
+#                         Years <- rep(as.numeric(ch$caption[2]),
+#                                      length(names(ch$data)))
+#                         Scenario <- rep("Future",
+#                                         length(names(ch$data)))}
+#    for(nam in names(ch$data))
+#      {for(met in metrics)
+#        {temp_res <-
+#          data.frame(Metric = met,
+#                     GCM = GCMs[which(nam == names(ch$data))],
+#                     SSP = SSPs[which(nam == names(ch$data))],
+#                     Year = Years[which(nam == names(ch$data))],
+#                     Result = quantile(ch$data[[nam]][,met],0.1), # 10% quantile
+#                     Scenario = Scenario[which(nam == names(ch$data))])
+#        if(i == 1 & nam == names(ch$data)[1] & met == metrics[1])
+#          results <- temp_res else
+#            results <- rbind(results,
+#                             temp_res)
+#          }
+#      }
+#    }
+# 
+# for(met in metrics)
+#   results[which(results$Metric == met),"SWC"] <-
+#     results[which(results$Metric == met),"Result"]/
+#       results[which(results$Metric == met & results$Year == 1980),
+#               "Result"]-1
+# 
+# rng = range(results$SWC)
+# 
+# p_future <- ggplot(results[which(!results$GCM == "none"),],
+#                    aes(GCM,
+#                        y = factor(Metric,
+#                                   levels = metrics),
+#                        fill = SWC)) +
+#   geom_tile()
+# 
+# p_future
+# 
+# 
+# p_future <-
+#   p_future +
+#   facet_grid(SSP ~ Year) 
+# 
+# p_future
+# 
+# p_future <-
+#   p_future +
+#   theme_bw(base_size = 10) +
+#   theme(axis.text = element_text(size = 6))
+# 
+# p_future
+# 
+# library(colorRamps)
+# p_future <-
+#   p_future +
+#   scale_fill_gradientn(colours = rev(matlab.like(15)),
+#                        labels = scales::percent,
+#                        limits = rng)
+# 
+# p_future
+# 
+# 
+# p_future <-
+#   p_future  +
+#   theme(axis.text.x = element_text(angle = 75, 
+#                                    hjust = 1,
+#                                    vjust = 1)) +
+#   labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
+#   scale_y_discrete(labels = model_labels) +
+#   ylab("Chill metric")
+# 
+# p_future
+# 
+# 
+# 
+# 
+# p_past<-
+#   ggplot(results[which(results$GCM == "none"),],
+#          aes(Year,
+#              y = factor(Metric, 
+#                         levels=metrics),
+#              fill = SWC)) +
+#   geom_tile()
+# 
+# p_past<-
+#   p_past +
+#   theme_bw(base_size = 10) +
+#   theme(axis.text = element_text(size = 6))
+# 
+# p_past<-
+#   p_past +
+#   scale_fill_gradientn(colours = rev(matlab.like(15)),
+#                        labels = scales::percent,
+#                        limits = rng)
+# 
+# p_past<-
+#   p_past +
+#   scale_x_continuous(position = "top")
+# 
+# p_past<-
+#   p_past +
+#   labs(fill = "Change in\nSafe Winter Chill\nsince 1975") +
+#   scale_y_discrete(labels = model_labels) +
+#   ylab("Chill metric")
+# 
+# p_past
+# 
+# 
+# library(patchwork)
+# 
+# chill_comp_plot<-
+#   (p_past +
+#      p_future +
+#      plot_layout(guides = "collect",
+#                  nrow = 2,
+#                  heights = c(1,3))) &
+#   theme(legend.position = "right",
+#         strip.background = element_blank(),
+#         strip.text = element_text(face = "bold"))
+# 
+# chill_comp_plot
+# hist_results <- results[which(results$GCM == "none"),]
+# hist_results$SSP <- "SSP1"
+# hist_results_2 <- hist_results
+# hist_results_2$SSP <- "SSP2"
+# hist_results_3 <- hist_results
+# hist_results_3$SSP <- "SSP3"
+# hist_results_4 <- hist_results
+# hist_results_4$SSP <- "SSP5"
+# hist_results <- rbind(hist_results,
+#                       hist_results_2,
+#                       hist_results_3,
+#                       hist_results_4)
+# 
+# future_results <- results[which(!results$GCM == "none"),]
+# 
+# GCM_aggregate <- aggregate(
+#   future_results$SWC,
+#   by=list(future_results$Metric,
+#           future_results$SSP,
+#           future_results$Year),
+#   FUN=mean)
+# 
+# colnames(GCM_aggregate) <- c("Metric",
+#                              "SSP",
+#                              "Year",
+#                              "SWC")
+# 
+# SSP_Time_series<-rbind(hist_results[,c("Metric",
+#                                        "SSP",
+#                                        "Year",
+#                                        "SWC")],
+#                        GCM_aggregate)
+# 
+# 
+# 
+# SSP_Time_series$Year <- as.numeric(SSP_Time_series$Year)
+# 
+# chill_change_plot<-
+#   ggplot(data = SSP_Time_series,
+#          aes(x = Year,
+#              y = SWC,
+#              col = factor(Metric,
+#                           levels = metrics))) +
+#   geom_line(lwd = 1.3) +
+#   facet_wrap(~SSP,
+#              nrow = 3) +
+#   theme_bw(base_size = 10) +
+#   labs(col = "Change in\nSafe Winter Chill\nsince 1980") +
+#   scale_color_discrete(labels = model_labels) +
+#   scale_y_continuous(labels = scales::percent) +
+#   theme(strip.background = element_blank(),
+#         strip.text = element_text(face = "bold")) +
+#   ylab("Safe Winter Chill")
+# 
+# chill_change_plot
 ```
 
 3. Produce an animated line plot of your results (summarizing Safe Winter Chill across all the GCMs).
 
 ```{r}
-hist_results <- results[which(results$GCM == "none"),]
-hist_results$SSP <- "SSP1"
-hist_results_2 <- hist_results
-hist_results_2$SSP <- "SSP2"
-hist_results_3 <- hist_results
-hist_results_3$SSP <- "SSP3"
-hist_results_4 <- hist_results
-hist_results_4$SSP <- "SSP5"
-hist_results <- rbind(hist_results,
-                      hist_results_2,
-                      hist_results_3,
-                      hist_results_4)
 
-future_results <- results[which(!results$GCM == "none"),]
-
-GCM_aggregate <- aggregate(
-  future_results$SWC,
-  by=list(future_results$Metric,
-          future_results$SSP,
-          future_results$Year),
-  FUN=mean)
-
-colnames(GCM_aggregate) <- c("Metric",
-                             "SSP",
-                             "Year",
-                             "SWC")
-
-SSP_Time_series<-rbind(hist_results[,c("Metric",
-                                       "SSP",
-                                       "Year",
-                                       "SWC")],
-                       GCM_aggregate)
-
-
-
-SSP_Time_series$Year <- as.numeric(SSP_Time_series$Year)
-
-chill_change_plot<-
-  ggplot(data = SSP_Time_series,
-         aes(x = Year,
-             y = SWC,
-             col = factor(Metric,
-                          levels = metrics))) +
-  geom_line(lwd = 1.3) +
-  facet_wrap(~SSP,
-             nrow = 3) +
-  theme_bw(base_size = 10) +
-  labs(col = "Change in\nSafe Winter Chill\nsince 1980") +
-  scale_color_discrete(labels = model_labels) +
-  scale_y_continuous(labels = scales::percent) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(face = "bold")) +
-  ylab("Safe Winter Chill")
-
-chill_change_plot
-
-
-library(gganimate)
-library(gifski)
-library(png)
-library(transformr)
-ccp<-chill_change_plot +
-  transition_reveal(Year)
-
-# trying out different numbers of frames per second
-
-animate(ccp, fps=1)
-anim_save("data_New_York/chill_comparison_animation_1.gif",
-          animation = last_animation())
-
-animate(ccp, fps=100)
-anim_save("data_New_York/chill_comparison_animation_100.gif",
-          animation = last_animation())
+# library(gganimate)
+# library(gifski)
+# library(png)
+# library(transformr)
+# ccp<-chill_change_plot +
+#   transition_reveal(Year)
+# 
+# # trying out different numbers of frames per second
+# 
+# animate(ccp, fps=1)
+# anim_save("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/chill_comparison_animation_1.gif",
+#           animation = last_animation())
+# 
+# animate(ccp, fps=100)
+# anim_save("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/chill_comparison_animation_100.gif",
+#           animation = last_animation())
 ```
+------------------------------------------------------------------------
+
+# Chapter 20: Simple Phenology Analysis
+
+## ***Exercises on simple phenology analysis*** 
+
+1. Provide a brief narrative describing what p-hacking is, and why this is a problematic approach to data analysis.
+
+P-hacking, (data fishing), is the manipulation of data analysis to obtain statistically significant results, often by repeatedly testing different hypotheses, adjusting variables, or selectively reporting findings until a desired p-value (typically < 0.05) is achieved. 
+
+This is problematic because it increases the likelihood of false positives—results that appear significant but are actually due to chance and it causes over-fitting during data analysis. 
+
+2. Provide a sketch of your causal understanding of the relationship between temperature and bloom dates.
+
+Temperature - Time
+Climate change has caused
+- Warmer winter = delay in bloom dates
+- Rising spring temperature = advanced bloom dates
+
+Temperatures have been rising over time and phenology has advanced over time so later years generally feature earlier bloom dates.
+
+3. What do we need to know to build a process-based model from this?
+
+Regression equation isn't very useful for this process.
+
+------------------------------------------------------------------------
+
+# Chapter 21: Delineating temperature response phases with PLS regression
+
+## ***Exercises on chill model comparison*** 
+
+1. Briefly explain why you shouldn’t take the results of a PLS regression analysis between temperature and phenology at face value. 
+
+PLS should not be used as a data mining tool but in conjuction with a theory on how the system works to detect meaningful pattterns. 
+
+
+2. What do you need in addition in order to make sense of such outputs?
+Replicate the PLS analysis for the Roter Boskoop dataset that you used in a previous lesson.
+
+```{r}
+
+library(chillR)
+library(tidyverse)
+
+Roter_first <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Roter_Boskoop_bloom_1958_2019.csv.csv") %>%
+  select(Pheno_year, First_bloom) %>%
+  mutate(Year = as.numeric(substr(First_bloom, 1, 4)),
+         Month = as.numeric(substr(First_bloom, 5, 6)),
+         Day = as.numeric(substr(First_bloom, 7, 8))) %>%
+  make_JDay() %>%
+  select(Pheno_year, JDay) %>%
+  rename(Year = Pheno_year,
+         pheno = JDay)
+
+
+head(Roter_first)
+
+
+KA_temps <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/TMaxTMin1958-2019_patched.csv") %>%
+  make_JDay()
+
+head(KA_temps)
+
+PLS_results <- PLS_pheno(KA_temps,
+                         Roter_first)
+
+
+head(PLS_results$PLS_summary)
+
+plot_PLS(PLS_results,
+         PLS_results_path = "PLS_out")
+
+library(ggplot2)
+
+PLS_gg <- PLS_results$PLS_summary %>%
+  mutate(Month = trunc(Date / 100),
+         Day = Date - Month * 100,
+         Date = NULL) 
+
+PLS_gg$Date <- ISOdate(2002, 
+                       PLS_gg$Month, 
+                       PLS_gg$Day)
+PLS_gg$Date[PLS_gg$JDay <= 0] <-
+  ISOdate(2001, 
+          PLS_gg$Month[PLS_gg$JDay <= 0], 
+          PLS_gg$Day[PLS_gg$JDay <= 0])
+
+PLS_gg <- PLS_gg %>%
+  mutate(VIP_importance = VIP >= 0.8,
+         VIP_Coeff = factor(sign(Coef) * VIP_importance))
+
+VIP_plot<- ggplot(PLS_gg,
+                  aes(x = Date,
+                      y = VIP)) +
+  geom_bar(stat='identity',
+           aes(fill = VIP_importance))
+
+VIP_plot <- VIP_plot +
+  scale_fill_manual(name="VIP", 
+                    labels = c("<0.8",
+                               ">0.8"), 
+                    values = c("FALSE"="grey",
+                               "TRUE"="blue")) +
+  theme_bw(base_size=15) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank() )
+
+VIP_plot
+
+coeff_plot <- ggplot(PLS_gg,
+                     aes(x = Date,
+                         y = Coef)) +
+  geom_bar(stat ='identity',
+           aes(fill = VIP_Coeff)) +
+  scale_fill_manual(name = "Effect direction", 
+                    labels = c("Advancing",
+                               "Unimportant",
+                               "Delaying"), 
+                    values = c("-1" = "red", 
+                               "0" = "grey",
+                               "1" = "dark green")) +
+  theme_bw(base_size = 15) +
+  ylab("PLS coefficient") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank() )
+
+coeff_plot
+
+temp_plot <- ggplot(PLS_gg) +
+  geom_ribbon(aes(x = Date,
+                  ymin = Tmean - Tstdev,
+                  ymax = Tmean + Tstdev),
+              fill = "grey") +
+  geom_ribbon(aes(x = Date,
+                  ymin = Tmean - Tstdev * (VIP_Coeff == -1),
+                  ymax = Tmean + Tstdev * (VIP_Coeff == -1)),
+              fill = "red") +
+  geom_ribbon(aes(x = Date,
+                  ymin = Tmean - Tstdev * (VIP_Coeff == 1),
+                  ymax = Tmean + Tstdev * (VIP_Coeff == 1)),
+              fill = "dark green") +
+  geom_line(aes(x = Date,
+                y = Tmean)) +
+  theme_bw(base_size = 15) +
+  ylab(expression(paste(T[mean]," (°C)")))
+
+temp_plot
+
+library(patchwork)
+
+plot<- (VIP_plot +
+          coeff_plot +
+          temp_plot +
+          plot_layout(ncol = 1,
+            guides = "collect")
+        ) & theme(legend.position = "right",
+                  legend.text = element_text(size = 8),
+                  legend.title = element_text(size = 10),
+                  axis.title.x = element_blank())
+
+plot
+
+
+ggplot_PLS <- function(PLS_results)
+{
+  library(ggplot2)
+  PLS_gg <- PLS_results$PLS_summary %>%
+    mutate(Month = trunc(Date / 100),
+           Day = Date - Month * 100,
+           Date = NULL) 
+  
+  PLS_gg$Date <- ISOdate(2002, 
+                         PLS_gg$Month, 
+                         PLS_gg$Day)
+  
+  PLS_gg$Date[PLS_gg$JDay <= 0] <-
+    ISOdate(2001, 
+            PLS_gg$Month[PLS_gg$JDay <= 0], 
+            PLS_gg$Day[PLS_gg$JDay <= 0])
+  
+  PLS_gg <- PLS_gg %>%
+    mutate(VIP_importance = VIP >= 0.8,
+           VIP_Coeff = factor(sign(Coef) * VIP_importance))
+  
+  VIP_plot<- ggplot(PLS_gg,aes(x=Date,y=VIP)) +
+    geom_bar(stat='identity',aes(fill=VIP>0.8))
+  
+  VIP_plot <- VIP_plot +
+    scale_fill_manual(name="VIP", 
+                      labels = c("<0.8", ">0.8"), 
+                      values = c("FALSE"="grey", "TRUE"="blue")) +
+    theme_bw(base_size=15) +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank())
+  
+  coeff_plot <- ggplot(PLS_gg,
+                       aes(x = Date,
+                           y = Coef)) +
+    geom_bar(stat ='identity',
+             aes(fill = VIP_Coeff)) +
+    scale_fill_manual(name = "Effect direction", 
+                      labels = c("Advancing",
+                                 "Unimportant",
+                                 "Delaying"), 
+                      values = c("-1" = "red", 
+                                 "0" = "grey",
+                                 "1" = "dark green")) +
+    theme_bw(base_size = 15) +
+    ylab("PLS coefficient") +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank())
+  
+  temp_plot <- ggplot(PLS_gg) +
+    geom_ribbon(aes(x = Date,
+                    ymin = Tmean - Tstdev,
+                    ymax = Tmean + Tstdev),
+                fill = "grey") +
+    geom_ribbon(aes(x = Date,
+                    ymin = Tmean - Tstdev * (VIP_Coeff == -1),
+                    ymax = Tmean + Tstdev * (VIP_Coeff == -1)),
+                fill = "red") +
+    geom_ribbon(aes(x = Date,
+                    ymin = Tmean - Tstdev * (VIP_Coeff == 1),
+                    ymax = Tmean + Tstdev * (VIP_Coeff == 1)),
+                fill = "dark green") +
+    geom_line(aes(x = Date,
+                  y = Tmean)) +
+    theme_bw(base_size = 15) +
+    ylab(expression(paste(T[mean]," (°C)")))
+  
+  library(patchwork)
+  
+  plot<- (VIP_plot +
+            coeff_plot +
+            temp_plot +
+            plot_layout(ncol=1,
+                        guides = "collect")
+          ) & theme(legend.position = "right",
+                    legend.text = element_text(size = 8),
+                    legend.title = element_text(size = 10),
+                    axis.title.x = element_blank())
+  
+  plot}
+
+ggplot_PLS(PLS_results)
+
+```
+
+
+3. Write down your thoughts on why we’re not seeing the temperature response pattern we may have expected. What happened to the chill response?
+
+PLS responded to temperatures indicating greater heat accumulation which shows early bloom however this is absent for chill accumulation because they are not monotonically related.
+------------------------------------------------------------------------
+
+# Chapter 22: Successes and limitations of PLS regression analysis
+
+## ***Exercises on chill model comparison*** 
+
+1. Briefly explain in what climatic settings we can expect PLS regression to detect the chilling phase - and in what settings this probably won’t work.
+
+In locations such as Davis in California, warm temperatures in winter reduces chill accumulation. While in other locations such as Klein-Altendorf and Beijing, when relatively cold, warming may increase the chill.When temperatures are relatively high, chill accumulation would be reduced by warming. At these two locations, there is no monotonic relationship between temperature and chill accumulation. Therefore, PLS would not produce clear results.
+
+
+2. How could we overcome this problem?
+
+PLS regression failed to pick up the chilling period in relatively cold locations is that there is no monotonic relationship between temperature and chill effectiveness.
+
+To overcome this problem, we need to convert temperature into something that is monotonically related to chill accumulation. Maybe we can make use of the chill models we already learned about
+
+------------------------------------------------------------------------
+
+# Chapter 23: PLS regression with agroclimatic metrics
+
+## ***Exercises on Chill model comparison*** 
+
+1. Repeat the PLS_chill_force procedure for the ‘Roter Boskoop’ dataset. Include plots of daily chill and heat accumulation.
+
+```{r}
+library(chillR)
+library(magrittr)
+
+temps_hourly <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/TMaxTMin1958-2019_patched.csv") %>%
+  stack_hourly_temps(latitude = 43.1)
+
+
+head(temps_hourly$hourtemps)
+
+daychill <- daily_chill(hourtemps = temps_hourly,
+                        running_mean = 1,
+                        models = list(
+                          Chilling_Hours = Chilling_Hours,
+                          Utah_Chill_Units = Utah_Model,
+                          Chill_Portions = Dynamic_Model,
+                          GDH = GDH)
+                        )
+
+head(daychill$daily_chill)
+
+dc <- make_daily_chill_plot2(daychill,
+                             metrics = c("Chill_Portions"),
+                             cumulative = FALSE,
+                             startdate = 300,
+                             enddate = 30,
+                             focusyears = c(2008,2018), 
+                             metriclabels = "Chill Portions")
+
+
+
+dc <- make_daily_chill_plot2(daychill,
+                             metrics = c("Chill_Portions"),
+                             cumulative = TRUE,
+                             startdate = 300,
+                             enddate = 30,
+                             focusyears = c(2008),
+                             metriclabels = "Chill Portions")
+library(dplyr)
+
+Roter_Boskoop <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Roter_Boskoop_bloom_1958_2019.csv.csv") %>%
+  select(Pheno_year, First_bloom) %>%
+  mutate(Year = as.numeric(substr(First_bloom, 1, 4)),
+         Month = as.numeric(substr(First_bloom, 5, 6)),
+         Day = as.numeric(substr(First_bloom, 7, 8))) %>%
+  make_JDay() %>%
+  select(Pheno_year, 
+         JDay) %>%
+  rename(Year = Pheno_year,
+         pheno = JDay) 
+
+
+plscf <- PLS_chill_force(daily_chill_obj = daychill,
+                         bio_data_frame = Roter_Boskoop,
+                         split_month = 6,
+                         chill_models = "Chill_Portions",
+                         heat_models = "GDH")
+
+head(plscf$Chill_Portions$GDH$PLS_summary)
+
+```
+
+2. Run PLS_chill_force analyses for all three major chill models. Delineate your best estimates of chilling and forcing phases for all of them.
+
+```{r}
+plot_PLS(plscf,
+         PLS_results_path = "data_New_York/plscf_outputs_NY")
+
+plscf <- PLS_chill_force(daily_chill_obj = daychill,
+                         bio_data_frame = Roter_Boskoop,
+                         split_month = 6,
+                         chill_models = "Chill_Portions",
+                         heat_models = "GDH",
+                         runn_means = 11)
+
+
+
+
+plot_PLS(plscf,
+         PLS_results_path = "data_New_York/plscf_outputs_NY_11days")
+
+
+
+plot_PLS(plscf,
+         PLS_results_path = "data_New_York/plscf_outputs_NY_11days_periods",
+         add_chill = c(-48,62),
+         add_heat = c(-5,105.5))
+
+PLS_gg <- plscf$Chill_Portions$GDH$PLS_summary %>%
+  mutate(Month = trunc(Date/100),
+         Day = Date - Month * 100,
+         Date = ISOdate(2002,
+                        Month,
+                        Day))
+
+PLS_gg[PLS_gg$JDay <= 0,"Date"]<-
+  ISOdate(2001,
+          PLS_gg$Month[PLS_gg$JDay <= 0],
+          PLS_gg$Day[PLS_gg$JDay <= 0])
+
+PLS_gg <- PLS_gg %>%
+  mutate(VIP_importance = VIP >= 0.8,
+         VIP_Coeff = factor(sign(Coef) * VIP_importance))
+
+chill_start_JDay <- -48
+chill_end_JDay <- 62
+heat_start_JDay <- -5
+heat_end_JDay <- 105.5
+
+chill_start_date <- ISOdate(2001,
+                            12,
+                            31) + chill_start_JDay * 24 * 3600
+chill_end_date <- ISOdate(2001,
+                          12,
+                          31) + chill_end_JDay * 24 * 3600
+heat_start_date <- ISOdate(2001,
+                           12,
+                           31) + heat_start_JDay * 24 * 3600
+heat_end_date <- ISOdate(2001,
+                         12,
+                         31) + heat_end_JDay * 24 * 3600
+
+library(ggplot2)
+
+temp_plot <- ggplot(PLS_gg,
+                    x = Date) +
+  annotate("rect",
+           xmin = chill_start_date,
+           xmax = chill_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "blue") +
+  annotate("rect",
+           xmin = heat_start_date,
+           xmax = heat_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "red") +
+  annotate("rect",
+           xmin = ISOdate(2001,
+                          12,
+                          31) +
+             min(plscf$pheno$pheno,
+                 na.rm = TRUE) * 24 * 3600,
+           xmax = ISOdate(2001,
+                          12,
+                          31) +
+             max(plscf$pheno$pheno,
+                 na.rm = TRUE) * 24 * 3600,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "black") +
+  geom_vline(xintercept = ISOdate(2001,
+                                  12,
+                                  31) +
+               median(plscf$pheno$pheno,
+                      na.rm = TRUE) * 24 * 3600,
+             linetype = "dashed") +
+  geom_ribbon(aes(x = Date,
+                  ymin = MetricMean - MetricStdev ,
+                  ymax = MetricMean + MetricStdev),
+              fill="grey") +
+  geom_ribbon(aes(x = Date,
+                  ymin = MetricMean - MetricStdev * (VIP_Coeff == -1),
+                  ymax = MetricMean + MetricStdev * (VIP_Coeff == -1)),
+              fill = "red") +
+  geom_ribbon(aes(x = Date,
+                  ymin = MetricMean - MetricStdev * (VIP_Coeff == 1),
+                  ymax = MetricMean + MetricStdev * (VIP_Coeff == 1)),
+              fill = "dark green") +
+  geom_line(aes(x = Date,
+                y = MetricMean ))
+
+temp_plot
+
+temp_plot <- temp_plot +
+  facet_wrap(vars(Type),
+             scales = "free_y",
+             strip.position = "left",
+             labeller =
+               labeller(Type = as_labeller(
+               c(Chill = "Chill (CP)",
+                 Heat = "Heat (GDH)")))) +
+  ggtitle("Daily chill and heat accumulation rates") +
+  theme_bw(base_size = 15) + 
+  theme(strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(size =12),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_blank()
+        )
+
+temp_plot
+
+
+
+VIP_plot<- ggplot(PLS_gg,
+                  aes(x = Date,
+                      y = VIP)) +
+  annotate("rect",
+           xmin = chill_start_date,
+           xmax = chill_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "blue") +
+  annotate("rect",
+           xmin = heat_start_date,
+           xmax = heat_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "red") +
+  annotate("rect",
+           xmin = ISOdate(2001,
+                          12,
+                          31) +
+             min(plscf$pheno$pheno,
+                 na.rm = TRUE) * 24 * 3600,
+           xmax = ISOdate(2001,
+                          12,
+                          31) +
+             max(plscf$pheno$pheno,
+                 na.rm = TRUE) * 24 * 3600,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "black") +
+  geom_vline(xintercept = ISOdate(2001,
+                                  12,
+                                  31) +
+               median(plscf$pheno$pheno,
+                      na.rm = TRUE) * 24 * 3600,
+             linetype = "dashed") +
+  geom_bar(stat = 'identity',
+           aes(fill = VIP > 0.8))
+
+VIP_plot
+
+VIP_plot <- VIP_plot + 
+  facet_wrap(vars(Type),
+             scales = "free",
+             strip.position = "left",
+             labeller = 
+               labeller(Type = as_labeller(
+                 c(Chill = "VIP for chill",
+                   Heat = "VIP for heat")))) +
+  scale_y_continuous(
+    limits = c(0,
+               max(plscf$Chill_Portions$GDH$PLS_summary$VIP))) +
+  ggtitle("Variable Importance in the Projection (VIP) scores") +
+  theme_bw(base_size = 15) + 
+  theme(strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_blank()
+        )
+  
+VIP_plot
+
+VIP_plot <- VIP_plot +
+  scale_fill_manual(name = "VIP", 
+                    labels = c("<0.8", ">0.8"), 
+                    values = c("FALSE" = "grey",
+                               "TRUE" = "blue")) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+VIP_plot
+
+coeff_plot <- ggplot(PLS_gg,
+                     aes(x = Date,
+                         y = Coef)) +
+  annotate("rect",
+           xmin = chill_start_date,
+           xmax = chill_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "blue") +
+  annotate("rect",
+           xmin = heat_start_date,
+           xmax = heat_end_date,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "red") +
+  annotate("rect",
+           xmin = ISOdate(2001,
+                          12,
+                          31) +
+             min(plscf$pheno$pheno,
+                 na.rm=TRUE) * 24 * 3600,
+           xmax = ISOdate(2001,
+                          12,
+                          31) +
+             max(plscf$pheno$pheno,
+                 na.rm = TRUE) * 24 * 3600,
+           ymin = -Inf,
+           ymax = Inf,
+           alpha = .1,
+           fill = "black") +
+  geom_vline(xintercept = ISOdate(2001,
+                                  12,
+                                  31) +
+               median(plscf$pheno$pheno,
+                      na.rm = TRUE) * 24 * 3600,
+             linetype = "dashed") +
+  geom_bar(stat = 'identity',
+           aes(fill = VIP_Coeff))
+
+coeff_plot
+
+coeff_plot <- coeff_plot +
+  facet_wrap(vars(Type),
+             scales = "free",
+             strip.position = "left",
+             labeller =
+               labeller(
+                 Type = as_labeller(
+                   c(Chill = "MC for chill",
+                     Heat = "MC for heat")))) +
+  scale_y_continuous(
+    limits = c(min(plscf$Chill_Portions$GDH$PLS_summary$Coef),
+               max(plscf$Chill_Portions$GDH$PLS_summary$Coef))) +
+  ggtitle("Model coefficients (MC)") +
+  theme_bw(base_size = 15) + 
+  theme(strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_blank()
+        )
+  
+coeff_plot 
+
+coeff_plot <- coeff_plot +  
+  scale_fill_manual(name="Effect direction", 
+                    labels = c("Advancing",
+                               "Unimportant",
+                               "Delaying"), 
+                    values = c("-1" = "red",
+                               "0" = "grey",
+                               "1" = "dark green")) +
+  ylab("PLS coefficient") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+coeff_plot
+
+library(patchwork)
+
+plot<- (VIP_plot +
+          coeff_plot +
+          temp_plot +
+          plot_layout(ncol = 1,
+            guides = "collect")
+        ) & theme(legend.position = "right",
+                  legend.text = element_text(size = 8),
+                  legend.title = element_text(size = 10),
+                  axis.title.x = element_blank())
+
+plot
+
+
+plot_PLS_chill_force <- function(plscf,
+                                 chill_metric = "Chill_Portions",
+                                 heat_metric = "GDH",
+                                 chill_label = "CP",
+                                 heat_label = "GDH",
+                                 chill_phase = c(-48, 62),
+                                 heat_phase = c(-5, 105.5))
+{
+  PLS_gg <- plscf[[chill_metric]][[heat_metric]]$PLS_summary %>%
+    mutate(Month = trunc(Date/100),
+           Day = Date - Month * 100,
+           Date = ISOdate(2002,
+                          Month,
+                          Day))
+  
+  PLS_gg[PLS_gg$JDay <= 0,"Date"]<-
+    ISOdate(2001,
+            PLS_gg$Month[PLS_gg$JDay <= 0],
+            PLS_gg$Day[PLS_gg$JDay <= 0])
+  
+  PLS_gg <- PLS_gg %>%
+    mutate(VIP_importance = VIP >= 0.8,
+           VIP_Coeff = factor(sign(Coef) * VIP_importance))
+  
+  chill_start_date <- ISOdate(2001,
+                              12,
+                              31) + chill_phase[1] * 24 * 3600
+  chill_end_date <- ISOdate(2001,
+                            12,
+                            31) + chill_phase[2] * 24 * 3600
+  heat_start_date <- ISOdate(2001,
+                             12,
+                             31) + heat_phase[1] * 24 * 3600
+  heat_end_date <- ISOdate(2001,
+                           12,
+                           31) + heat_phase[2] * 24 * 3600
+
+
+
+
+  temp_plot <- ggplot(PLS_gg) +
+    annotate("rect",
+             xmin = chill_start_date,
+             xmax = chill_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "blue") +
+    annotate("rect",
+             xmin = heat_start_date,
+             xmax = heat_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "red") +
+    annotate("rect",
+             xmin = ISOdate(2001,
+                            12,
+                            31) +
+               min(plscf$pheno$pheno,
+                   na.rm = TRUE) * 24 * 3600,
+             xmax = ISOdate(2001,
+                            12,
+                            31) +
+               max(plscf$pheno$pheno,
+                   na.rm = TRUE) * 24 * 3600,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "black") +
+    geom_vline(xintercept = ISOdate(2001,
+                                    12,
+                                    31) +
+                 median(plscf$pheno$pheno,
+                        na.rm=TRUE) * 24 * 3600,
+               linetype = "dashed") +
+    geom_ribbon(aes(x = Date,
+                    ymin = MetricMean - MetricStdev ,
+                    ymax = MetricMean + MetricStdev ),
+                fill = "grey") +
+    geom_ribbon(aes(x = Date,
+                    ymin = MetricMean - MetricStdev * (VIP_Coeff == -1),
+                    ymax = MetricMean + MetricStdev * (VIP_Coeff == -1)),
+                fill = "red") +
+    geom_ribbon(aes(x = Date,
+                    ymin = MetricMean - MetricStdev * (VIP_Coeff == 1),
+                    ymax = MetricMean + MetricStdev * (VIP_Coeff == 1)),
+                fill = "dark green") +
+    geom_line(aes(x = Date,
+                  y = MetricMean)) +
+    facet_wrap(vars(Type),
+               scales = "free_y",
+               strip.position = "left",
+               labeller = 
+                 labeller(
+                   Type =
+                     as_labeller(c(Chill = paste0("Chill (",
+                                                  chill_label,
+                                                  ")"),
+                                   Heat = paste0("Heat (",
+                                                 heat_label,
+                                                 ")"))))) +
+    ggtitle("Daily chill and heat accumulation rates") +
+    theme_bw(base_size = 15) + 
+    theme(strip.background = element_blank(),
+          strip.placement = "outside",
+          strip.text.y = element_text(size = 12),
+          plot.title = element_text(hjust = 0.5),
+          axis.title.y = element_blank()
+          )
+  
+  VIP_plot <- ggplot(PLS_gg,
+                     aes(x = Date,
+                         y = VIP)) +
+    annotate("rect",
+             xmin = chill_start_date,
+             xmax = chill_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "blue") +
+    annotate("rect",
+             xmin = heat_start_date,
+             xmax = heat_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "red") +
+    annotate("rect",
+             xmin = ISOdate(2001,
+                            12,
+                            31) + min(plscf$pheno$pheno,
+                                      na.rm = TRUE) * 24 * 3600,
+             xmax = ISOdate(2001,
+                            12,
+                            31) + max(plscf$pheno$pheno,
+                                      na.rm = TRUE) * 24 * 3600,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "black") +
+    geom_vline(xintercept = ISOdate(2001,
+                                    12,
+                                    31) + median(plscf$pheno$pheno,
+                                                 na.rm = TRUE) * 24 * 3600,
+               linetype = "dashed") +
+    geom_bar(stat = 'identity',
+             aes(fill = VIP>0.8)) +
+    facet_wrap(vars(Type), 
+               scales = "free",
+               strip.position = "left",
+               labeller = 
+                 labeller(
+                   Type = as_labeller(c(Chill="VIP for chill",
+                                        Heat="VIP for heat")))) +
+    scale_y_continuous(
+      limits=c(0,
+               max(plscf[[chill_metric]][[heat_metric]]$PLS_summary$VIP))) +
+    ggtitle("Variable Importance in the Projection (VIP) scores") +
+    theme_bw(base_size = 15) + 
+    theme(strip.background = element_blank(),
+          strip.placement = "outside",
+          strip.text.y = element_text(size = 12),
+          plot.title = element_text(hjust = 0.5),
+          axis.title.y = element_blank()
+          ) +
+    scale_fill_manual(name = "VIP", 
+                      labels = c("<0.8", ">0.8"), 
+                      values = c("FALSE" = "grey",
+                                 "TRUE" = "blue")) +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  coeff_plot <- ggplot(PLS_gg,
+                       aes(x = Date,
+                           y = Coef)) +
+    annotate("rect",
+             xmin = chill_start_date,
+             xmax = chill_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "blue") +
+    annotate("rect",
+             xmin = heat_start_date,
+             xmax = heat_end_date,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "red") +
+    annotate("rect",
+             xmin = ISOdate(2001,
+                            12,
+                            31) + min(plscf$pheno$pheno,
+                                      na.rm = TRUE) * 24 * 3600,
+             xmax = ISOdate(2001,
+                            12,
+                            31) + max(plscf$pheno$pheno,
+                                      na.rm = TRUE) * 24 * 3600,
+             ymin = -Inf,
+             ymax = Inf,
+             alpha = .1,
+             fill = "black") +
+    geom_vline(xintercept = ISOdate(2001,
+                                    12,
+                                    31) + median(plscf$pheno$pheno,
+                                                 na.rm = TRUE) * 24 * 3600,
+               linetype = "dashed") +
+    geom_bar(stat = 'identity',
+             aes(fill = VIP_Coeff)) +
+    facet_wrap(vars(Type),
+               scales = "free",
+               strip.position = "left",
+               labeller =
+                 labeller(
+                   Type = as_labeller(c(Chill = "MC for chill",
+                                        Heat = "MC for heat")))) +
+    scale_y_continuous(
+      limits = c(min(plscf[[chill_metric]][[heat_metric]]$PLS_summary$Coef),
+                 max(plscf[[chill_metric]][[heat_metric]]$PLS_summary$Coef))) +
+    ggtitle("Model coefficients (MC)") +
+    theme_bw(base_size = 15) + 
+    theme(strip.background = element_blank(),
+          strip.placement = "outside",
+          strip.text.y = element_text(size = 12),
+          plot.title = element_text(hjust = 0.5),
+          axis.title.y = element_blank()
+          ) +
+    scale_fill_manual(name="Effect direction", 
+                      labels = c("Advancing",
+                                 "Unimportant",
+                                 "Delaying"), 
+                      values = c("-1" = "red",
+                                 "0" = "grey",
+                                 "1" = "dark green")) +
+    ylab("PLS coefficient") +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+   library(patchwork)
+  
+  plot <- (VIP_plot +
+             coeff_plot +
+             temp_plot +
+             plot_layout(ncol=1,
+                         guides = "collect")
+           ) & theme(legend.position = "right",
+                     legend.text = element_text(size = 8),
+                     legend.title = element_text(size = 10),
+                     axis.title.x = element_blank())
+
+plot
+
+}
+
+plot_PLS_chill_force(plscf)
+```
+
+3. Plot results for all three analyses, including shaded plot areas for the chilling and forcing periods you estimated. 
+```{r}
+
+daychill <- daily_chill(hourtemps = temps_hourly,
+                        running_mean = 11,
+                        models = list(Chilling_Hours = Chilling_Hours,
+                                      Utah_Chill_Units = Utah_Model,
+                                      Chill_Portions = Dynamic_Model,
+                                      GDH = GDH)
+                        )
+
+plscf <- PLS_chill_force(daily_chill_obj = daychill,
+                         bio_data_frame = Roter_Boskoop,
+                         split_month = 6,
+                         chill_models = c("Chilling_Hours",
+                                          "Utah_Chill_Units",
+                                          "Chill_Portions"),
+                       heat_models = c("GDH"))
+
+plot_PLS_chill_force(plscf,
+                     chill_metric = "Chilling_Hours",
+                     heat_metric = "GDH",
+                     chill_label = "CH",
+                     heat_label = "GDH",
+                     chill_phase = c(0,0),
+                     heat_phase = c(0,0))
+
+plot_PLS_chill_force(plscf,
+                     chill_metric = "Utah_Chill_Units",
+                     heat_metric = "GDH",
+                     chill_label = "CU",
+                     heat_label = "GDH",
+                     chill_phase = c(0,0),
+                     heat_phase = c(0,0))
+
+plot_PLS_chill_force(plscf,
+                     chill_metric = "Chill_Portions",
+                     heat_metric = "GDH",
+                     chill_label = "CP",
+                     heat_label = "GDH",
+                     chill_phase = c(0,0),
+                     heat_phase = c(0,0))
+
+
+
+```
+
+------------------------------------------------------------------------
+
+# Chapter 24: PLS regression with agroclimatic metrics
+
+## ***Exercises on examples of PLS regression with agroclimatic metrics***
+
+1. Look across all the PLS results presented above. Can you detect a pattern in where chilling and forcing periods could be delineated clearly, and where this attempt failed?
+
+PLS regression doesn't allow easy delineation of temperature response phases, especially when it comes to the chilling period. This problem didn’t really go away after replacing temperatures with agroclimatic metrics in the analysis.
+
+PLS looks responses of a variable to variation in the input variable. This response should be monotonic (bloom date should be positively or negatively correlated with the input variables). The sign of this relationship should not change halfway through the range of the input variables.
+
+Another prerequisite for a successful PLS regression, is that there needs to be meaningful variation in the signal variables in the first place.
+
+2. Think about possible reasons for the success or failure of PLS analysis based on agroclimatic metrics. Write down your thoughts.
+
+------------------------------------------------------------------------
+
+# Chapter 25: PLS regression with agroclimatic metrics
+
+## ***Exercises on expected PLS responsiveness***
+
+Produce chill and heat model sensitivity plots for the location you focused on in previous exercises.
+
+
+
 
