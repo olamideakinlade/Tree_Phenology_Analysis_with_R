@@ -3753,7 +3753,7 @@ Chill_sensitivity_temps(Model_sensitivities_CNY,
 
 1. Reproduce the analysis for the ‘Roter Boskoop’ dataset.
 
-```{r}
+```{r, eval = FALSE}
 
 library(chillR)
 library(magrittr)
@@ -4448,3 +4448,298 @@ pheno_trend_ggplot(temps = temps,
 ## ***Exercises on the relative importance of chill and heat***
 
 Describe the temperature response hypothesis outlined in this chapter.
+
+The temperature response hypothesis explains how the phenology of temperate trees in cold-winter climates responds to temperature variations during the chilling and forcing periods. During the ecodormancy phase, when buds are sensitive to heat, spring phenology is primarily influenced by forcing temperatures, as chill accumulation in such climates is usually high, and winter conditions are favorable for chilling. This stability makes it challenging to define the chilling period in these regions.
+
+As endodormancy temperatures rise, temperature conditions during chill accumulation begin to influence phenology, introducing a delaying effect. This transition is marked by increasing interaction between chill and forcing temperatures, depicted as upward-bending contour lines in the hypothesis framework. With further warming, chilling temperatures dominate, eventually causing stagnation or delays in budbreak, instead of advancing phenology.
+
+------------------------------------------------------------------------
+
+# Chapter 29: Making valid tree phenology models
+
+## ***Exercises on making valid tree phenology models***
+
+
+1. Explain the difference between output validation and process validation.
+
+Output validation assesses a model's predictive accuracy, while process validation ensures the model's internal logic is scientifically sound and reflective of real-world processes. For instance, output validation relies on performance metrics like Root Mean Square Error (RMSE) or Model Efficiency to quantify accuracy while requires domain knowledge about the processes to evaluate how well the model represents them. Both are important, but process validation provides deeper confidence in the model's applicability beyond specific datasets.
+
+2. Explain what a validity domain is and why it is important to consider this whenever we want to use our model to forecast something.This is the range of conditions that the model is capable of making reliable predictions for. 
+
+Validity domain ensures that models are applied within their appropriate scope, enhancing their reliability and relevance. In application,  model performance to be validated under conditions that resemble those predicted. 
+
+3. What is validation for purpose?
+
+Validation for purpose is the process of assessing whether a model is capable of achieving its intended objective in a specific context. It involves reflecting on the model's goals and evaluating if it can realistically and reliably deliver the required predictions under the conditions of interest. This approach considers the model's assumptions, structure, and data inputs to determine its applicability for a given task.
+
+
+
+4. How can we ensure that our model is suitable for the predictions we want to make?
+
+
+------------------------------------------------------------------------
+
+# Chapter 30: The Phenoflex Model
+
+## ***Exercises on making valid tree phenology models***
+
+1. Parameterize the PhenoFlex model for `Roter Boskoop’ apples.
+```{r}
+
+library(chillR)
+library(ggplot2)
+library(tidyverse)
+
+CKA_weather <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/TMaxTMin1958-2019_patched.csv")
+hourtemps <- stack_hourly_temps(CKA_weather, 
+                                latitude = 50.6)
+
+yc <- 40 # chilling requirement
+zc <- 190 # heating requirement
+
+iSeason <- genSeason(hourtemps,
+                     mrange = c(8, 6), # month range
+                     years = c(2009))
+
+season_data <- hourtemps$hourtemps[iSeason[[1]],]
+
+res <- PhenoFlex(temp = season_data$Temp,
+                 times = c(1: length(season_data$Temp)),
+                 zc = zc,
+                 stopatzc = TRUE,
+                 yc = yc,
+                 basic_output = FALSE)
+
+DBreakDay <- res$bloomindex
+seasontemps <- hourtemps$hourtemps[iSeason[[1]],]
+seasontemps[,"x"] <- res$x
+seasontemps[,"y"] <- res$y
+seasontemps[,"z"] <- res$z
+seasontemps <- add_date(seasontemps)
+
+CR_full <- seasontemps$Date[which(seasontemps$y >= yc)[1]] # the date where chilling requirement is broken
+Bloom <- seasontemps$Date[which(seasontemps$z >= zc)[1]]
+
+chillplot <- ggplot(data = seasontemps[1:DBreakDay,],
+                    aes(x = Date,
+                        y = y)) +
+  geom_line(col = "blue",
+            lwd = 1.5) +
+  theme_bw(base_size = 20) +
+  geom_hline(yintercept = yc,
+             lty = 2,
+             col = "blue",
+             lwd = 1.2) +
+  geom_vline(xintercept = CR_full,
+             lty = 3,
+             col = "blue",
+             lwd = 1.2) +
+  ylab("Chill accumulation (y)") +
+  labs(title = "Chilling") +
+  annotate("text",
+           label = "Chill req. (yc)", 
+           x = ISOdate(2008,10,01),
+           y = yc*1.1,
+           col = "blue",
+           size = 5)
+
+heatplot <- ggplot(data = seasontemps[1:DBreakDay,],
+                   aes(x = Date,
+                       y = z)) +
+  geom_line(col = "red",
+            lwd = 1.5) +
+  theme_bw(base_size = 20) +
+  scale_y_continuous(position = "right") +
+  geom_hline(yintercept = zc,
+             lty = 2,
+             col = "red",
+             lwd = 1.2) +
+  geom_vline(xintercept = CR_full,
+             lty = 3,
+             col = "blue",
+             lwd = 1.2) +
+  geom_vline(xintercept = Bloom,
+             lty = 3,
+             col = "red",
+             lwd = 1.2) +
+  ylab("Heat accumulation (z)") +
+  labs(title = "Forcing") +
+  annotate("text",
+           label = "Heat req. (zc)", 
+           x = ISOdate(2008,10,01),
+           y = zc*0.95,
+           col = "red",
+           size = 5)
+
+
+library(patchwork)
+chillplot + heatplot
+
+
+yc <- 40
+zc <- 190
+seasons <- 1959:2019
+
+iSeason <- genSeason(hourtemps,
+                     mrange = c(8, 6),
+                     years = seasons)
+
+for (sea in 1:length(seasons))
+{season_data <- hourtemps$hourtemps[iSeason[[sea]], ]
+ res <- PhenoFlex(temp = season_data$Temp,
+                  times = c(1: length(season_data$Temp)),
+                  zc = zc,
+                  stopatzc = TRUE,
+                  yc = yc,
+                  basic_output = FALSE)
+ if(sea == 1)
+    results <- season_data$DATE[res$bloomindex] else
+      results <- c(results,
+                   season_data$DATE[res$bloomindex])}
+
+predictions <- data.frame(Season = seasons,
+                          Prediction = results)
+predictions$Prediction <-
+  ISOdate(2001,
+          substr(predictions$Prediction, 4, 5),
+          substr(predictions$Prediction, 1, 2))
+
+ggplot(data = predictions,
+       aes(x = Season,
+           y = Prediction)) +
+  geom_smooth() +
+  geom_point() +
+  ylab("Predicted bloom date") +
+  theme_bw(base_size = 15)
+
+
+Roter_first <- read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/Roter_Boskoop_bloom_1958_2019.csv.csv") %>%
+  select(Pheno_year, First_bloom) %>%
+  mutate(Year = as.numeric(substr(First_bloom, 1, 4)),
+         Month = as.numeric(substr(First_bloom, 5, 6)),
+         Day = as.numeric(substr(First_bloom, 7, 8))) %>%
+  make_JDay() %>%
+  select(Pheno_year, JDay) %>%
+  rename(Year = Pheno_year,
+         pheno = JDay)
+
+hourtemps <- 
+  read_tab("C:/Users/Home/Documents/R Files/Trial Bookdown/data_New_York/TMaxTMin1958-2019_patched.csv") %>%
+  stack_hourly_temps(latitude = 50.6)
+
+
+# here's the order of the parameters (from the helpfile of the
+# PhenoFlex_GDHwrapper function)
+#          yc,  zc,  s1, Tu,    E0,      E1,     A0,         A1,   Tf, Tc, Tb,  slope
+par <-   c(40, 190, 0.5, 25, 3372.8,  9900.3, 6319.5,
+           5.939917e13,  4, 36,  4,  1.60)
+upper <- c(41, 200, 1.0, 30, 4000.0, 10000.0, 7000.0,  
+           6.e13, 10, 40, 10, 50.00)
+lower <- c(38, 180, 0.1, 0 , 3000.0,  9000.0, 6000.0,   
+           5.e13,  0,  0,  0,  0.05)
+
+SeasonList <- genSeasonList(hourtemps$hourtemps,
+                            mrange = c(8, 6),
+                            years = c(1959:2019))
+
+# Fit_res <-
+#   phenologyFitter(par.guess = par,
+#                   modelfn = PhenoFlex_GDHwrapper,
+#                   bloomJDays = Roter_first$pheno[which(Roter_first$Year > 1958)],
+#                   SeasonList = SeasonList,
+#                   lower = lower,
+#                   upper = upper,
+#                   control = list(smooth = FALSE,
+#                                  verbose = FALSE,
+#                                  maxit = 1000,
+#                                  nb.stop.improvement = 5))
+# 
+# Roter_par <- Fit_res$par
+# 
+# write.csv(Roter_par,
+#           "data_New_York/PhenoFlex_parameters_Roter_Boskoop.csv")
+# 
+# 
+# 
+# Roter_par <- 
+#   read_tab("data_New_York/PhenoFlex_parameters_Roter_Boskoop.csv")[,2]
+# 
+# SeasonList <- genSeasonList(hourtemps$hourtemps, 
+#                             mrange = c(8, 6),
+#                             years = c(1959:2019))
+# 
+# Roter_PhenoFlex_predictions <- Roter_first[which(Roter_first$Year > 1958),]
+# 
+# for(y in 1:length(Roter_PhenoFlex_predictions$Year))
+#    Roter_PhenoFlex_predictions$predicted[y] <-
+#     PhenoFlex_GDHwrapper(SeasonList[[y]],
+#                          Roter_par)
+# 
+# Roter_PhenoFlex_predictions$Error <- 
+#   Roter_PhenoFlex_predictions$predicted - 
+#   Roter_PhenoFlex_predictions$pheno
+# 
+# RMSEP(Roter_PhenoFlex_predictions$predicted,
+#       Roter_PhenoFlex_predictions$pheno)
+# 
+# mean(Roter_PhenoFlex_predictions$Error)
+# 
+# mean(abs(Roter_PhenoFlex_predictions$Error))
+# 
+# ggplot(Roter_PhenoFlex_predictions,
+#        aes(x = pheno,
+#            y = predicted)) +
+#   geom_point() +
+#   geom_abline(intercept = 0,
+#               slope = 1) +
+#   theme_bw(base_size = 15) +
+#   xlab("Observed bloom date (Day of the year)") +
+#   ylab("Predicted bloom date (Day of the year)") +
+#   ggtitle("Predicted vs. observed bloom dates")
+# 
+# ggplot(Roter_PhenoFlex_predictions,
+#        aes(Error)) +
+#   geom_histogram() +
+#   ggtitle("Distribution of prediction errors") +
+#   theme_bw(base_size = 15)
+# 
+# RPIQ(Roter_PhenoFlex_predictions$predicted,
+#      Roter_PhenoFlex_predictions$pheno)
+
+```
+
+2. Produce plots of predicted vs. observed bloom dates and distribution of prediction errors.
+3. Compute the model performance metrics RMSEP, mean error and mean absolute error.
+
+------------------------------------------------------------------------
+
+# Chapter 31: The PhenoFlex model - a second look
+
+## ***Exercises on basic PhenoFlex diagnostics***
+
+
+------------------------------------------------------------------------
+
+# Chapter 32: Can we improve the performance of PhenoFlex
+
+## ***Exercises on improving the performance of PhenoFlex***
+
+Describe (briefly) in your own words:
+
+1. What was the objective of this work? To validate the  PhenoFlex model under different conditions. Also, some results obtained in the original publication suggest temperature responses during chill accumulation that seem implausible.
+
+2. What was the main conclusion? Discussions on the major potential limitations of the PhenoFlex and other models. It has been obbserved that under extreme conditions, the process of dormancy breaking is modulated by mechanisms that are not considered in the PhenoFlex framework.
+
+3. What experiments could we conduct to test the hypothesis that emerged at the end of the conclusion?
+Additional systematic studies would have to be conducted.
+
+------------------------------------------------------------------------
+
+# Chapter 33: Frost risk analysis
+
+## ***Exercises on frost risk analysis***
+
+1. Illustrate the development of the bloom period over the duration of the weather record. Use multiple ways to show this - feel free to be creative.
+ 2. Evaluate the occurrence of frost events at Klein-Altendorf since 1958. Illustrate this in a plot.
+3. Produce an illustration of the relationship between spring frost events and the bloom period of ‘Roter Boskoop’.
+4. Evaluate how the risk of spring frost for this cultivar has changed over time. Has there been a significant trend?
