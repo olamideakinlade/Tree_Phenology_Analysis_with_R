@@ -4740,6 +4740,9 @@ Additional systematic studies would have to be conducted.
 ## ***Exercises on frost risk analysis***
 
 1. Illustrate the development of the bloom period over the duration of the weather record. Use multiple ways to show this - feel free to be creative.
+
  2. Evaluate the occurrence of frost events at Klein-Altendorf since 1958. Illustrate this in a plot.
+ 
 3. Produce an illustration of the relationship between spring frost events and the bloom period of ‘Roter Boskoop’.
+
 4. Evaluate how the risk of spring frost for this cultivar has changed over time. Has there been a significant trend?
