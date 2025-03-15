@@ -83,7 +83,7 @@ Phenological stages of cherry + Image 1: 51
 -   Image 3: 87
 
 ![Stages of
-Cherry](\Users\Home\Downloads\photo_5834526249584805567_y.jpg)
+Cherry]("C:\Users\Home\Documents\R Files\Tree_Phenology_Analysis_with_R\data_New_York\pheno_stages.png")
 
 ------------------------------------------------------------------------
 
