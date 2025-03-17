@@ -2,8 +2,8 @@
 title: "Tree Phenology Assignment"
 author: "Olamide Akinlade"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
-format:
-  html:
+output:
+  html_document:
     toc: true
     toc_float: true
     toc-title: "Contents"
